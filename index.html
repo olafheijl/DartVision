@@ -27,15 +27,14 @@
 
     <p id="status">Camera not connected</p>
 
-    <!-- Live camera -->
-    <video id="camera" autoplay playsinline muted></video>
-
-    <!-- Detection result -->
-    <canvas id="output"></canvas>
-
     <button id="calibrate" disabled>Kalibreer handmatig</button>
     <button id="cancel-calibration" hidden>Annuleren</button>
-    <p id="calibration-status">Houd de camera vast op dezelfde plek. Markeer bij kalibratie vier punten op de buitenrand van de dubbelring.</p>
-    <canvas id="calibration-preview" hidden></canvas>
+    <button id="toggle-overlay" hidden>Verberg uitlijning</button>
+
+    <div class="camera-stage" id="camera-stage">
+        <video id="camera" autoplay playsinline muted></video>
+        <canvas id="output" hidden></canvas>
+        <p id="calibration-status">Markeer bij kalibratie vier punten op de buitenrand van de dubbelring.</p>
+    </div>
 </body>
 </html>

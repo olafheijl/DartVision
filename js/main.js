@@ -36,6 +36,9 @@ detectButton.addEventListener("click", async () => {
     status.textContent = "Detecting dartboard...";
 
     try {
+        document.getElementById('toggle-overlay').hidden = true;
+        document.getElementById('camera-stage').classList.add('frozen');
+        canvas.hidden = false;
         const found = await detectBoard(video, canvas);
 
         status.textContent = found

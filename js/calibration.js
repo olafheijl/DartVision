@@ -8,14 +8,21 @@ export function initCalibration(video, canvas, onActive) {
     const button = document.getElementById('calibrate');
     const cancel = document.getElementById('cancel-calibration');
     const status = document.getElementById('calibration-status');
-    const preview = document.getElementById('calibration-preview');
+    const preview = document.getElementById('toggle-overlay');
+    const stage = document.getElementById('camera-stage');
+    let overlayVisible = true;
+    preview.addEventListener('click', () => {
+        overlayVisible = !overlayVisible;
+        canvas.hidden = !overlayVisible;
+        preview.textContent = overlayVisible ? 'Verberg uitlijning' : 'Toon uitlijning';
+    });
     let points = [];
-    let frame;
     let active = false;
     const finish = () => {
         active = false;
         cancel.hidden = true;
         canvas.style.touchAction = '';
+        canvas.style.pointerEvents = 'none';
         onActive(false);
     };
     button.addEventListener('click', async () => {
@@ -23,7 +30,9 @@ export function initCalibration(video, canvas, onActive) {
         try {
             await getOpenCV();
             captureFrame(video, canvas);
-            frame = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height);
+            canvas.hidden = false;
+            canvas.style.pointerEvents = 'auto';
+            stage.classList.add('frozen');
             points = [];
             active = true;
             preview.hidden = true;
@@ -39,6 +48,8 @@ export function initCalibration(video, canvas, onActive) {
     });
     cancel.addEventListener('click', () => {
         finish();
+        stage.classList.remove('frozen');
+        canvas.hidden = true;
         status.textContent = 'Kalibratie geannuleerd. Start opnieuw om punten te markeren.';
     });
     canvas.addEventListener('pointerdown', async event => {
@@ -67,27 +78,60 @@ export function initCalibration(video, canvas, onActive) {
             }
             const { cv } = await getOpenCV();
             const keep = mat => { mats.push(mat); return mat; };
-            ctx.putImageData(frame, 0, 0);
-            const src = keep(cv.imread(canvas));
-            const from = keep(cv.matFromArray(4, 1, cv.CV_32FC2, points.flat()));
-            const to = keep(cv.matFromArray(4, 1, cv.CV_32FC2, target));
+            const from = keep(cv.matFromArray(4, 1, cv.CV_32FC2, target));
+            const to = keep(cv.matFromArray(4, 1, cv.CV_32FC2, points.flat()));
             const transform = keep(cv.getPerspectiveTransform(from, to));
-            const result = keep(new cv.Mat());
-            cv.warpPerspective(src, result, transform, new cv.Size(480, 480));
-            cv.imshow(preview, result);
-            const out = preview.getContext('2d');
-            out.strokeStyle = '#00ff00'; out.lineWidth = 1;
-            for (const radius of [6.35, 15.9, 99, 107, 162, 170]) {
-                out.beginPath(); out.arc(240, 240, radius / 170 * 220, 0, 2 * Math.PI); out.stroke();
-            }
-            for (let i = 0; i < 20; i++) {
-                const angle = (i * 18 - 99) * Math.PI / 180;
-                out.beginPath(); out.moveTo(240 + Math.cos(angle)*15.9/170*220, 240 + Math.sin(angle)*15.9/170*220);
-                out.lineTo(240 + Math.cos(angle)*220, 240 + Math.sin(angle)*220); out.stroke();
-            }
+            drawOverlay(ctx, Array.from(transform.data64F));
+            stage.classList.remove('frozen');
+            overlayVisible = true;
+            preview.textContent = 'Verberg uitlijning';
             preview.hidden = false;
-            status.textContent = 'Kalibratievoorbeeld gereed. Controleer of bull, ringen en sectoren op de groene lijnen liggen. Zo niet: kalibreer opnieuw. Deze kalibratie geldt voor dit stilstaande beeld; houd de camera op dezelfde plek.';
-        } catch (error) { status.textContent = error.message; }
+            status.textContent = 'Controleer de gekleurde bull en D20 / D6 / D3 / D11 op het livebeeld. Camera verplaatst? Kalibreer opnieuw.';
+        } catch (error) { status.textContent = error.message; stage.classList.remove('frozen'); canvas.hidden = true; }
         finally { for (const mat of mats.reverse()) mat.delete(); finish(); }
     });
+}
+
+export function projectPoint(matrix, x, y) {
+    const w = matrix[6] * x + matrix[7] * y + matrix[8];
+    return [(matrix[0] * x + matrix[1] * y + matrix[2]) / w,
+        (matrix[3] * x + matrix[4] * y + matrix[5]) / w];
+}
+
+function drawOverlay(ctx, matrix) {
+    ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+    const scale = 220 / 170;
+    const point = (radius, angle) => projectPoint(matrix,
+        240 + Math.cos(angle) * radius * scale, 240 + Math.sin(angle) * radius * scale);
+    function region(inner, outer, start, end, color) {
+        ctx.beginPath();
+        for (let i = 0; i <= 60; i++) {
+            const [x, y] = point(outer, start + (end - start) * i / 60);
+            if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        }
+        for (let i = 60; i >= 0; i--) ctx.lineTo(...point(inner, start + (end - start) * i / 60));
+        ctx.closePath(); ctx.fillStyle = color; ctx.fill();
+        ctx.strokeStyle = 'white'; ctx.lineWidth = 1.5; ctx.stroke();
+    }
+    region(0, 15.9, 0, Math.PI * 2, 'rgba(255, 200, 0, .4)');
+    region(0, 6.35, 0, Math.PI * 2, 'rgba(255, 80, 0, .6)');
+    for (const [number, degrees, color] of [
+        [20, -90, 'rgba(0, 220, 255, .5)'], [6, 0, 'rgba(255, 180, 0, .5)'],
+        [3, 90, 'rgba(255, 80, 200, .5)'], [11, 180, 'rgba(100, 255, 100, .5)']
+    ]) {
+        region(162, 170, (degrees - 9) * Math.PI / 180, (degrees + 9) * Math.PI / 180, color);
+        const [x, y] = point(145, degrees * Math.PI / 180);
+        ctx.font = 'bold 15px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.lineWidth = 4; ctx.strokeStyle = '#111827'; ctx.strokeText(`D${number}`, x, y);
+        ctx.fillStyle = 'white'; ctx.fillText(`D${number}`, x, y);
+    }
+    ctx.strokeStyle = 'rgba(0, 255, 180, .85)'; ctx.lineWidth = 1;
+    for (const radius of [99, 107, 170]) {
+        ctx.beginPath();
+        for (let i = 0; i <= 120; i++) {
+            const p = point(radius, i / 120 * Math.PI * 2);
+            if (i === 0) ctx.moveTo(...p); else ctx.lineTo(...p);
+        }
+        ctx.stroke();
+    }
 }
