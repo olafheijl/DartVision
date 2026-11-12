@@ -1,0 +1,19 @@
+
+# Visual Studio
+.vs/
+*.suo
+*.user
+
+# Visual Studio Code
+.vscode/
+
+# Operating system
+.DS_Store
+Thumbs.db
+
+# Dependencies (for future use)
+node_modules/
+
+# Environment variables and secrets
+.env
+.env.*
