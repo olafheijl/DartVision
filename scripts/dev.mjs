@@ -39,6 +39,7 @@ try {
 }
 const server = await createServer({ root, server: {
   host: '0.0.0.0', port: 5173, strictPort: true,
+  watch: { ignored: ['**/.vs/**', '**/.cert/**'] },
   https: { key: certificate.key, cert: certificate.cert + ca.cert },
   fs: { deny: ['**/.cert/**', '**/.git/**', '**/.env*', '**/*.key'] }
 } });
