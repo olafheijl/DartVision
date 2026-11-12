@@ -1,7 +1,7 @@
 
 import { startCamera } from "./camera.js";
 import { detectBoard } from "./detection.js";
-import { initCalibration, getCalibrationMethod } from "./calibration.js";
+import { initCalibration } from "./calibration.js";
 
 const startButton = document.getElementById("start");
 const detectButton = document.getElementById("detect");
@@ -10,7 +10,11 @@ const canvas = document.getElementById("output");
 const status = document.getElementById("status");
 
 // Initialize calibration settings
-initCalibration();
+const calibrateButton = document.getElementById("calibrate");
+initCalibration(video, canvas, active => {
+    detectButton.disabled = active;
+    calibrateButton.disabled = active;
+});
 
 startButton.addEventListener("click", async () => {
     try {
@@ -19,6 +23,7 @@ startButton.addEventListener("click", async () => {
         status.textContent = "Camera connected!";
         startButton.disabled = true;
         detectButton.disabled = false;
+        calibrateButton.disabled = false;
 
     } catch (error) {
         status.textContent = error.message;
@@ -27,6 +32,7 @@ startButton.addEventListener("click", async () => {
 
 detectButton.addEventListener("click", async () => {
     detectButton.disabled = true;
+    calibrateButton.disabled = true;
     status.textContent = "Detecting dartboard...";
 
     try {
@@ -40,5 +46,6 @@ detectButton.addEventListener("click", async () => {
         status.textContent = error.message;
     } finally {
         detectButton.disabled = false;
+        calibrateButton.disabled = false;
     }
 });

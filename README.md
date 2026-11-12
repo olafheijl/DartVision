@@ -58,3 +58,11 @@ Cloudflare verzorgt daar HTTPS. Lokale certificaten en ontwikkelscripts komen ni
 Met `npm run preview` kun je de build op je pc controleren; deze preview is HTTP en alleen lokaal bereikbaar. Gebruik `npm start` voor cameratests vanaf je telefoon.
 
 `dist/`, `.cert/` en `node_modules/` worden lokaal gegenereerd en staan niet in Git. Voor een reproduceerbare installatie na het clonen kun je `npm ci` gebruiken.
+
+## Bord handmatig kalibreren
+
+Start de camera en kies **Kalibreer handmatig**. Het beeld wordt stilgezet. Tik vervolgens op de **buitenrand van de dubbelring** in deze volgorde: midden dubbel 20 (boven), midden dubbel 6 (rechts), midden dubbel 3 (onder), midden dubbel 11 (links). Gebruik niet de nummerring of de buitenkant van de surround.
+
+Het rechtgetrokken voorbeeld toont de verwachte bull, dubbel-/triple-ringen en sectorgrenzen in groen. Controleer de uitlijning en herhaal bij verkeerde punten. Met Annuleren kun je opnieuw beginnen. Houd de camera daarna vast op dezelfde plek. Het voorbeeld geldt voor het vastgelegde beeld; er is nog geen automatische dartdetectie of koppeling van cameracoördinaten aan scores, en de kalibratie wordt niet bewaard na herladen.
+
+**Detect Board** blijft een eenvoudige cirkelzoeker en is geen volledige kalibratie. De eerdere Geometry/Wire/Hybrid-keuze is verwijderd omdat die geen verschillende algoritmes aanstuurde. Handmatige kalibratie gebruikt vier punten en perspectiefcorrectie; sterke lensvervorming wordt hiermee niet gecorrigeerd.

@@ -33,17 +33,9 @@
     <!-- Detection result -->
     <canvas id="output"></canvas>
 
-    <!-- Calibration settings -->
-    <div class="calibration-settings">
-        <label for="calibration-method">
-            Calibration Method
-        </label>
-
-        <select id="calibration-method">
-            <option value="geometry">Geometry</option>
-            <option value="wire">Wire Detection</option>
-            <option value="hybrid" selected>Hybrid</option>
-        </select>
-    </div>
+    <button id="calibrate" disabled>Kalibreer handmatig</button>
+    <button id="cancel-calibration" hidden>Annuleren</button>
+    <p id="calibration-status">Houd de camera vast op dezelfde plek. Markeer bij kalibratie vier punten op de buitenrand van de dubbelring.</p>
+    <canvas id="calibration-preview" hidden></canvas>
 </body>
 </html>

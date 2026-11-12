@@ -1,22 +1,10 @@
+import { getOpenCV, captureFrame } from "./opencv.js";
 
 export async function detectBoard(video, canvas) {
-    const cv = await window.cv;
-
-    if (!cv || typeof cv.Mat !== "function") {
-        throw new Error("OpenCV is still loading");
-    }
-
-    // Capture a frame from the camera
-    const width = 480;
-    const height = Math.round(
-        video.videoHeight * width / video.videoWidth
-    );
-
-    canvas.width = width;
-    canvas.height = height;
-
+    const { cv } = await getOpenCV();
+    captureFrame(video, canvas);
+    const { width, height } = canvas;
     const ctx = canvas.getContext("2d");
-    ctx.drawImage(video, 0, 0, width, height);
 
     // Convert image to OpenCV matrices
     const src = cv.imread(canvas);
