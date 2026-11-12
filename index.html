@@ -31,9 +31,16 @@
     <button id="cancel-calibration" hidden>Annuleren</button>
     <button id="toggle-overlay" hidden>Verberg uitlijning</button>
 
+    <button id="track-pointer" disabled>Test blauwe penpunt</button>
+    <section id="pointer-score" hidden aria-live="polite">
+        <span class="score-caption">PENPUNT · TESTMODUS</span>
+        <strong id="score-value">—</strong>
+        <span id="score-detail">Kalibreer eerst het bord.</span>
+    </section>
     <div class="camera-stage" id="camera-stage">
         <video id="camera" autoplay playsinline muted></video>
         <canvas id="output" hidden></canvas>
+        <canvas id="pointer-overlay" hidden></canvas>
         <p id="calibration-status">Markeer bij kalibratie vier punten op de buitenrand van de dubbelring.</p>
     </div>
 </body>

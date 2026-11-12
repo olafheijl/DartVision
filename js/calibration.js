@@ -10,6 +10,8 @@ export function initCalibration(video, canvas, onActive) {
     const status = document.getElementById('calibration-status');
     const preview = document.getElementById('toggle-overlay');
     const stage = document.getElementById('camera-stage');
+    let inverse = null;
+    let frameSize;
     let overlayVisible = true;
     preview.addEventListener('click', () => {
         overlayVisible = !overlayVisible;
@@ -26,6 +28,7 @@ export function initCalibration(video, canvas, onActive) {
         onActive(false);
     };
     button.addEventListener('click', async () => {
+        clearOverlay();
         button.disabled = true;
         try {
             await getOpenCV();
@@ -87,6 +90,8 @@ export function initCalibration(video, canvas, onActive) {
         finally { for (const mat of mats.reverse()) mat.delete(); finish(); }
     });
     function clearOverlay() {
+        inverse = null;
+        document.dispatchEvent(new Event("calibration-change"));
         preview.hidden = true;
         canvas.hidden = true;
         canvas.style.pointerEvents = 'none';
@@ -94,6 +99,9 @@ export function initCalibration(video, canvas, onActive) {
         canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
     }
     function showOverlay(matrix) {
+        inverse = invertMatrix(matrix);
+        frameSize = [video.videoWidth, video.videoHeight];
+        document.dispatchEvent(new Event('calibration-change'));
         drawOverlay(canvas.getContext('2d'), matrix);
         stage.classList.remove('frozen');
         canvas.style.pointerEvents = 'none';
@@ -104,6 +112,12 @@ export function initCalibration(video, canvas, onActive) {
     }
     return {
         clear: clearOverlay,
+        get ready() { return !!inverse && frameSize[0] === video.videoWidth && frameSize[1] === video.videoHeight; },
+        toBoard(x, y) {
+            if (!this.ready) return null;
+            const [bx, by] = projectPoint(inverse, x * canvas.width, y * canvas.height);
+            return { x: (bx - 240) * 170 / 220, y: (by - 240) * 170 / 220 };
+        },
         showAutomatic(circle) {
             const scale = circle.radius / 220;
             showOverlay([scale, 0, circle.x - 240 * scale,
@@ -156,4 +170,12 @@ function drawOverlay(ctx, matrix) {
         }
         ctx.stroke();
     }
+}
+
+export function invertMatrix(m) {
+    const [a,b,c,d,e,f,g,h,i] = m;
+    const cof = [e*i-f*h,c*h-b*i,b*f-c*e,f*g-d*i,a*i-c*g,c*d-a*f,d*h-e*g,b*g-a*h,a*e-b*d];
+    const determinant = a*cof[0]+b*cof[3]+c*cof[6];
+    if (!Number.isFinite(determinant) || Math.abs(determinant)<1e-12) throw new Error('Ongeldige kalibratie. Kalibreer opnieuw.');
+    return cof.map(value => value/determinant);
 }
