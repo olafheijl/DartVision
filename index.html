@@ -3,34 +3,47 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0">
+
     <title>DartVision</title>
+
     <link rel="stylesheet" href="css/style.css">
+
+    <!-- OpenCV -->
+    <script async
+            src="https://docs.opencv.org/4.x/opencv.js"></script>
+
+    <!-- Main application -->
     <script type="module" src="js/main.js"></script>
-    <script async src="https://docs.opencv.org/4.x/opencv.js"></script>
 </head>
+
 <body>
     <h1>DartVision</h1>
 
+    <!-- Camera controls -->
     <button id="start">Start Camera</button>
+    <button id="detect" disabled>Detect Board</button>
+
     <p id="status">Camera not connected</p>
 
-    <video id="camera" autoplay playsinline muted>
-        <button id="detect" disabled>Detect Board</button>
+    <!-- Live camera -->
+    <video id="camera" autoplay playsinline muted></video>
 
-        <div class="calibration-settings">
-            <label for="calibration-method">
-                Calibration Method
-            </label>
+    <!-- Detection result -->
+    <canvas id="output"></canvas>
 
-            <select id="calibration-method">
-                <option value="geometry">Geometry</option>
-                <option value="wire">Wire Detection</option>
-                <option value="hybrid" selected>Hybrid</option>
-            </select>
-        </div>
+    <!-- Calibration settings -->
+    <div class="calibration-settings">
+        <label for="calibration-method">
+            Calibration Method
+        </label>
 
-        <canvas id="output"></canvas>
-    </video>
+        <select id="calibration-method">
+            <option value="geometry">Geometry</option>
+            <option value="wire">Wire Detection</option>
+            <option value="hybrid" selected>Hybrid</option>
+        </select>
+    </div>
 </body>
 </html>
