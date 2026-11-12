@@ -71,32 +71,43 @@ Plaats de camera vast aan de zijkant en houd het hele speelvlak zichtbaar. Zorg 
 
 ## Eén echte dart herkennen (experimenteel)
 
-1. Zet de camera vast, met constante verlichting. Kies een licht schuine kijkhoek waarbij punt, schacht en flight zichtbaar zijn. Kalibreer het bord en controleer de uitlijning.
-2. Kies **Test dart herkennen**. Camera en score passen op één telefoonscherm.
-3. Zorg dat het bord leeg is en kies **Leeg bord vastleggen**. Haal je hand weg: de app wacht minstens twee seconden en vervolgens op een rustig beeld.
-4. Prik **één dart** in het bord, haal je hand volledig uit beeld en druk op **Herken dart**. De app wacht op een rustig beeld en voert één meting uit. OpenCV Canny en HoughLinesP zoeken rechte randen van het nieuwe object; fitLine schat een gezamenlijke schachtlijn. Vorminformatie helpt de richting naar de punt te onderscheiden van de flight. De score verschijnt als **Schatting**, waarna het gemeten beeld wordt stilgezet. Druk opnieuw op Herken dart voor een nieuwe meting.
-5. Verwijder de dart voor de volgende poging; iedere meting vergelijkt met hetzelfde lege bord. Bij verandering van camera of belichting: opnieuw kalibreren en een nieuw leeg referentiebeeld maken.
+1. Zet de camera vast. Start de camera, kalibreer het bord en controleer de bestaande uitlijning.
+2. Kies **Test dart herkennen**. Camera, score en knoppen passen op één telefoonscherm.
+3. Maak het bord leeg en kies **Leeg bord vastleggen**. Haal je hand weg. Na minstens twee seconden neemt de app drie rustige, verschillende videobeelden en maakt daarvan een mediaanreferentie.
+4. Prik **één dart** in het bord, haal je hand uit beeld en druk op **Herken dart**.
+5. De app verzamelt drie rustige beelden en meet de dart in ieder beeld afzonderlijk. De resultaten moeten binnen 3 mm van elkaar liggen volgens de kalibratie en hetzelfde scorevak aanwijzen. Anders verschijnt een melding in plaats van een score.
+6. Het middelste meetbeeld wordt stilgezet met de uitlijning. Verwijder de dart voor een volgende poging en druk opnieuw op Herken dart. Na cameraverplaatsing: opnieuw kalibreren en een nieuwe referentie vastleggen.
 
-Geen blauwe markering nodig. Deze versie combineert beeldverschil, vormanalyse en OpenCV-lijndetectie, geen getraind AI-model. Een algemene helderheidsverschuiving wordt eerst gecompenseerd. Beweging, grote veranderingen, meerdere losse objecten en een onduidelijke punt leiden tot een melding in plaats van een score. Bij een positie vlak bij een draad wordt geen zekere score gegeven. Er worden geen wedstrijdscores opgeslagen.
+### Uitlijning beoordelen
 
-**Beperking:** de echte insteekpositie kan met één camera niet betrouwbaar worden bepaald als de punt achter de barrel/flight verborgen zit. Schaduwen, reflecties, automatische belichting en donkere darts tegen donkere vakken kunnen ook verkeerde of ontbrekende detecties geven. De smalste zichtbare contour is een schatting van de punt, geen bewezen insteekpositie. Controleer het kruisje en de score altijd op het echte bord. Sterke perspectiefvervorming vraagt handmatige kalibratie; de automatische kalibratie herkent de bordrotatie niet uit de cijfers.
+- **Geel kader:** samengevoegde delen van het mogelijke dartobject.
+- **Blauwe dwarsstreepjes:** de smalle doorsneden die de schachtlijn bepalen.
+- **Grijze dwarsstreepjes:** bredere stukken die buiten de lijnberekening vallen, zoals de flight.
+- **Groene lijn:** de geschatte schachtas.
+- **Oranje lijnstuk:** de extra zoekactie naar een zwak zichtbare punt voorbij de sterke contour.
+- **Roze kruisje:** de geschatte insteekpositie.
+- **Oranje cirkels bij twijfel:** puntkandidaten die tussen de beelden niet overeenkwamen.
 
+Onder de score staan het aantal gekoppelde fragmenten, gebruikte smalle doorsneden en de overeenstemming tussen de drie beelden. De kleuren laten zien wat is gemeten; ze zijn geen bevestiging dat de positie juist is. Dicht bij een draad wordt geen zekere score getoond.
 
-### Uitlijning van de dart controleren
+### Wat de nieuwe methode doet
 
-Na **Herken dart** zie je een stilstaand camerabeeld met:
+De bordherkenning en kalibratie blijven ongewijzigd. Alleen de dartmeting is vervangen. Na belichtingscompensatie en correctie van kleine beeldverschuivingen zoekt de app veranderingen op grijswaardenbeelden. Sterke delen geven een kandidaat; zwakkere delen kunnen daarbij aansluiten. Losse delen worden alleen gekoppeld als ze voldoende in elkaars verlengde liggen. De dart hoeft dus niet één verbonden vlek te zijn.
 
-- **Geel kader:** het gevonden langwerpige veranderde object.
-- **Blauwe lijnen:** kandidaat-randen die ongeveer in de schachtrichting lopen.
-- **Groene lijn:** de geschatte schachtas, wanneer voldoende passende lijnen zijn gevonden.
-- **Roze kruisje:** het geschatte uiteinde van de punt. Dit kruisje bepaalt de geschatte score.
+De meetkern verdeelt de dart langs verschillende mogelijke assen in dwarsdoorsneden. Hij sluit brede delen uit en past met OpenCV `fitLine`/Huber een robuuste lijn door de smalle delen. OpenCV Canny/Hough geeft mogelijke richtingen; de grootte en het midden van de flight bepalen de uiteindelijke lijn niet. Een lokale zoekactie langs de lijn verfijnt het zwakke uiteinde. Elk van de drie beelden doorloopt deze meting onafhankelijk.
 
-Als alleen randen zichtbaar zijn maar punt en flight niet te onderscheiden zijn, verschijnen de randen met een uitleg en geen score. Een onzichtbare insteekpositie kan deze methode niet reconstrueren. Controleer of de groene lijn echt over de schacht loopt en of het roze kruisje bij het bord ligt. De uitlijning is meetinformatie, geen automatische bevestiging van juistheid. Met Herken dart of Leeg bord vastleggen keer je terug naar livebeeld voor een volgende meting.
+Het ontwerp is geïnspireerd op de smalle-schachtbenadering beschreven in [OpenDarts Ares](https://github.com/richiela/opendarts/blob/main/opendarts/engines/ares/detection.py) en de kenmerkpunt-/lijnbenadering van [OpenCV Steel Darts](https://github.com/hanneshoettinger/opencv-steel-darts/blob/master/DartsRecognition.py). De JavaScript-meetkern is een eigen implementatie. OpenDarts gebruikt meerdere camera's; de prestaties van dat volledige systeem gelden niet automatisch voor deze app met één camera.
 
-### Donkere barrel en metalen punt
+### Een meting bewaren
 
-Dartmetingen gebruiken nu tot 1280 pixels langs de langste beeldzijde (zonder kleinere camerabeelden op te schalen). De vergelijking corrigeert kleine beeldverschuivingen en een algemene helderheidsverandering. Na het vinden van de schacht zoekt de app in een smalle strook verder naar zwakkere veranderingen van de donkere punt. Dat deel wordt **oranje** getekend; het roze kruisje staat op het laatst ondersteunde uiteinde. De zoekactie stopt bij een aanhoudende onderbreking en verzint geen insteekpositie achter een verborgen punt. Kleine uitlijncorrecties zijn voor de beeldvergelijking; na echte cameraverplaatsing blijft opnieuw kalibreren nodig.
+Met **Bewaar meting** download je lokaal een JSON-bestand met het referentiebeeld, de drie meetbeelden als PNG, hun afzonderlijke resultaten, het gecombineerde resultaat en de kalibratie van de beeldhoeken. Ook een mislukte herkenning kan worden bewaard. Er worden geen beelden naar een server gestuurd. Het bestand bevat camerabeelden; deel alleen opnames die je wilt delen.
 
-De gevoeligere detectie kan ook lokale schaduwen en reflecties meenemen. Controleer daarom de uitlijning. De tests omvatten opgebouwde donkere-puntbeelden en OpenCV-browsertests; dit is geen garantie voor herkenning onder alle lichtomstandigheden.
+Dit bestand maakt een mislukte meting reproduceerbaar voor verdere ontwikkeling. De app heeft nog geen importscherm voor opgeslagen metingen. Er worden geen worpen of wedstrijdscores geregistreerd.
 
-De schachtas wordt bij twee geschikte, vrijwel parallelle randen uit hun middenlijn bepaald. Vluchtranden die uiteenlopen worden niet als zo'n paar gebruikt. Afstandstoleranties schalen met de beeldresolutie; een vroege, onnauwkeurige contourpunt mag niet elke schachtrand apart afwijzen.
+### Grenzen van deze testversie
+
+Een volledig verborgen insteekpositie kan één camera niet betrouwbaar bepalen. Schaduwen, reflecties, overlappingen en donkere darts tegen donkere vakken kunnen nog steeds fouten of ontbrekende metingen geven. Gebruik een vaste camera, voldoende gelijkmatig licht en een kijkhoek waarin punt en schacht zichtbaar zijn. Metingen gebruiken maximaal 1280 pixels langs de langste beeldzijde. Kleine beeldregistratiecorrecties vervangen opnieuw kalibreren na echte cameraverplaatsing niet.
+
+De regressietests gebruiken onder andere donkere en onderbroken punten, verschillende richtingen en resoluties, brede flights, handen, losse fragmenten en wisselende puntposities. Ze bewijzen geen nauwkeurigheid op alle echte borden. Bewaarde echte metingen blijven nodig om die nauwkeurigheid te bepalen.
+
+Ontwikkelcontroles: `node --test tests/*.test.mjs` en `npm run build`.

@@ -119,11 +119,13 @@ body.tracking #pointer-score { order: -2; margin: 0; width: min(90%, 560px); fle
 body.tracking #track-pointer { order: -1; margin: 0; padding: 8px 16px; flex-shrink: 0; }
 body.tracking #toggle-overlay { padding: 6px 12px; font-size: 12px; margin: 0; }
 body.tracking .camera-stage { margin: 0 auto; min-height: 0; }
-body.tracking .camera-stage video { max-height: calc(100svh - 235px); }
 #pointer-overlay { pointer-events: none; }
 body.tracking #capture-reference { padding: 6px 12px; font-size: 12px; margin: 0; flex-shrink: 0; }
-body.tracking .camera-stage video { max-height: calc(100svh - 275px); }
 body.tracking #recognise-dart { background: #0369a1; padding: 8px 16px; margin: 0; flex-shrink: 0; }
 button:disabled { opacity: .5; cursor: default; }
 .camera-stage.dart-result video { visibility: hidden; }
-body.tracking .camera-stage video { max-height: calc(100svh - 320px); }
+
+#dart-diagnostics { display: block; font-size: 11px; color: #a5d9ec; margin-top: 4px; }
+body.tracking #save-measurement { padding: 6px 12px; font-size: 12px; margin: 0; flex-shrink: 0; }
+body.tracking .camera-viewport { flex: 1; min-height: 0; width: 100%; display: flex; align-items: center; justify-content: center; }
+body.tracking .camera-stage video { max-height: var(--camera-available, 40svh); }
