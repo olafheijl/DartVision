@@ -16,3 +16,40 @@ test('global exposure change is compensated while a local new dart remains',()=>
     assert.ok(frameChange(reference,corrected)<.01);
     assert.deepEqual([...reference.data.slice(0,4)],[80,100,120,255]);
 });
+
+test('follows a weak dark point beyond a bright shaft and stops at the board', async()=>{
+    const { followDarkTip }=await import('../js/dart-opencv.js');
+    const width=160,height=100;
+    const reference={width,height,data:new Uint8ClampedArray(width*height*4).fill(80)};
+    const image={width,height,data:new Uint8ClampedArray(reference.data)};
+    for(let x=40;x<=75;x++)for(let y=49;y<=51;y++)image.data.set([65,65,65,255],(y*width+x)*4);
+    const tip=followDarkTip(reference,image,{x:40,y:50},{x:1,y:0},70);
+    assert.ok(tip.x>=74&&tip.x<=76,JSON.stringify(tip));
+    assert.equal(tip.y,50);
+});
+
+test('does not extend a shaft into an unchanged or uniformly shadowed board',async()=>{
+    const { followDarkTip }=await import('../js/dart-opencv.js');
+    const width=160,height=100;
+    const reference={width,height,data:new Uint8ClampedArray(width*height*4).fill(80)};
+    for(const shade of [80,60]){
+        const image={width,height,data:new Uint8ClampedArray(width*height*4).fill(shade)};
+        assert.deepEqual(followDarkTip(reference,image,{x:40,y:50},{x:1,y:0},70),{x:40,y:50});
+    }
+});
+
+test('aligns small background translations before calculating differences',async()=>{
+    const {alignReference}=await import('../js/dart-opencv.js');
+    const width=100,height=100,data=new Uint8ClampedArray(width*height*4);
+    for(let y=0;y<height;y++)for(let x=0;x<width;x++){
+        const v=((Math.floor(x/7)+Math.floor(y/9))%2)*120+40;
+        data.set([v,v,v,255],(y*width+x)*4);
+    }
+    const reference={width,height,data};
+    const image={width,height,data:new Uint8ClampedArray(data)};
+    for(let y=2;y<height-2;y++)for(let x=2;x<width-2;x++)image.data.set(data.subarray(((y-1)*width+x+2)*4,((y-1)*width+x+2)*4+4),(y*width+x)*4);
+    const aligned=alignReference(reference,image);
+    let bad=0;
+    for(let y=5;y<95;y++)for(let x=5;x<95;x++)if(aligned.data[(y*width+x)*4]!==image.data[(y*width+x)*4])bad++;
+    assert.equal(bad,0);
+});

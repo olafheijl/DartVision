@@ -92,3 +92,9 @@ Na **Herken dart** zie je een stilstaand camerabeeld met:
 - **Roze kruisje:** het geschatte uiteinde van de punt. Dit kruisje bepaalt de geschatte score.
 
 Als alleen randen zichtbaar zijn maar punt en flight niet te onderscheiden zijn, verschijnen de randen met een uitleg en geen score. Een onzichtbare insteekpositie kan deze methode niet reconstrueren. Controleer of de groene lijn echt over de schacht loopt en of het roze kruisje bij het bord ligt. De uitlijning is meetinformatie, geen automatische bevestiging van juistheid. Met Herken dart of Leeg bord vastleggen keer je terug naar livebeeld voor een volgende meting.
+
+### Donkere barrel en metalen punt
+
+Dartmetingen gebruiken nu tot 1280 pixels langs de langste beeldzijde (zonder kleinere camerabeelden op te schalen). De vergelijking corrigeert kleine beeldverschuivingen en een algemene helderheidsverandering. Na het vinden van de schacht zoekt de app in een smalle strook verder naar zwakkere veranderingen van de donkere punt. Dat deel wordt **oranje** getekend; het roze kruisje staat op het laatst ondersteunde uiteinde. De zoekactie stopt bij een aanhoudende onderbreking en verzint geen insteekpositie achter een verborgen punt. Kleine uitlijncorrecties zijn voor de beeldvergelijking; na echte cameraverplaatsing blijft opnieuw kalibreren nodig.
+
+De gevoeligere detectie kan ook lokale schaduwen en reflecties meenemen. Controleer daarom de uitlijning. De tests omvatten opgebouwde donkere-puntbeelden en OpenCV-browsertests; dit is geen garantie voor herkenning onder alle lichtomstandigheden.

@@ -67,7 +67,7 @@ export function initDartTracking(video, calibration) {
                 if(video.readyState<2){show('—','Wachten op camerabeeld…');return;}
                 // A result is deliberately frozen for inspection until a new request.
                 if(reference&&captureAt===null&&requestAt===null)return;
-                const scale=640/Math.max(video.videoWidth,video.videoHeight);
+                const scale=Math.min(1,1280/Math.max(video.videoWidth,video.videoHeight));
                 sample.width=Math.round(video.videoWidth*scale);sample.height=Math.round(video.videoHeight*scale);
                 ctx.drawImage(video,0,0,sample.width,sample.height);
                 const image=ctx.getImageData(0,0,sample.width,sample.height);

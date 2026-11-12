@@ -9,7 +9,7 @@ export function frameChange(a, b, threshold = 35) {
     return changed / (a.width * a.height);
 }
 
-export function findDartPoint(reference, image) {
+export function findDartPoint(reference, image, threshold = 45) {
     const { width, height, data } = image;
     if (!reference || reference.width !== width || reference.height !== height) return { reason: 'Leg eerst het lege bord vast.' };
     const mask = new Uint8Array(width * height);
@@ -17,7 +17,7 @@ export function findDartPoint(reference, image) {
     for (let i=0;i<mask.length;i++) {
         const offset=i*4;
         const difference=Math.max(Math.abs(data[offset]-reference.data[offset]),Math.abs(data[offset+1]-reference.data[offset+1]),Math.abs(data[offset+2]-reference.data[offset+2]));
-        if(difference>45) {mask[i]=1;changed++;}
+        if(difference>threshold) {mask[i]=1;changed++;}
     }
     if(changed>width*height*.08) return {reason:'Te veel beeldverandering. Haal je hand weg; controleer camera en belichting.'};
     const objects=[];
