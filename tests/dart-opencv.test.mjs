@@ -53,3 +53,24 @@ test('aligns small background translations before calculating differences',async
     for(let y=5;y<95;y++)for(let x=5;x<95;x++)if(aligned.data[(y*width+x)*4]!==image.data[(y*width+x)*4])bad++;
     assert.equal(bad,0);
 });
+
+test('pairs shaft edges instead of rejecting each edge against a noisy tip',async()=>{
+    const {selectShaftLines}=await import('../js/dart-opencv.js');
+    const lines=[{x1:100,y1:90,x2:220,y2:90,length:120},{x1:105,y1:110,x2:210,y2:110,length:105}];
+    const result=selectShaftLines(lines,{x:95,y:114},2);
+    assert.ok(result);
+    assert.equal(result.lines.length,2);
+    assert.deepEqual(result.endpoints,[105,100,210,100]);
+});
+test('shaft tolerances scale with image size and reject distant unrelated edges',async()=>{
+    const {selectShaftLines}=await import('../js/dart-opencv.js');
+    const lines=[{x1:50,y1:45,x2:110,y2:45,length:60},{x1:52.5,y1:55,x2:105,y2:55,length:52.5}];
+    assert.ok(selectShaftLines(lines,{x:47.5,y:57},1));
+    assert.equal(selectShaftLines(lines,{x:45,y:100},1),null);
+});
+
+test('does not combine diverging flight edges into a shaft centreline',async()=>{
+    const {selectShaftLines}=await import('../js/dart-opencv.js');
+    const lines=[{x1:100,y1:90,x2:220,y2:90,length:120},{x1:100,y1:110,x2:220,y2:130,length:Math.hypot(120,20)}];
+    assert.equal(selectShaftLines(lines,{x:95,y:100},1),null);
+});

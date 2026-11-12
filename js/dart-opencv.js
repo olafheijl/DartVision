@@ -72,6 +72,36 @@ export function followDarkTip(reference,image,start,direction,maxLength) {
     return last;
 }
 
+// Pair opposite shaft edges before using a noisy contour endpoint as a check.
+// All pixel tolerances scale with analysis resolution.
+export function selectShaftLines(lines,tip,scale=1) {
+    let best=null;
+    for(let i=0;i<lines.length;i++)for(let j=i+1;j<lines.length;j++){
+        const a=lines[i],b=lines[j];
+        const ux=(a.x2-a.x1)/a.length,uy=(a.y2-a.y1)/a.length;
+        const vx=(b.x2-b.x1)/b.length,vy=(b.y2-b.y1)/b.length;
+        if(Math.abs(ux*vx+uy*vy)<Math.cos(4*Math.PI/180))continue;
+        const along=(x,y)=>x*ux+y*uy,across=(x,y)=>-x*uy+y*ux;
+        const aT=[along(a.x1,a.y1),along(a.x2,a.y2)].sort((x,y)=>x-y);
+        const bT=[along(b.x1,b.y1),along(b.x2,b.y2)].sort((x,y)=>x-y);
+        const lo=Math.max(aT[0],bT[0]),hi=Math.min(aT[1],bT[1]);
+        if(hi-lo<Math.max(12*scale,Math.min(a.length,b.length)*.4))continue;
+        const sa=across((a.x1+a.x2)/2,(a.y1+a.y2)/2),sb=across((b.x1+b.x2)/2,(b.y1+b.y2)/2);
+        const separation=Math.abs(sa-sb),centre=(sa+sb)/2;
+        if(separation<1.5*scale||separation>18*scale)continue;
+        const offset=Math.abs(across(tip.x,tip.y)-centre);
+        if(offset>6*scale+separation*.25)continue;
+        const score=(hi-lo)/(1+offset/(5*scale)+separation/(20*scale));
+        if(!best||score>best.score)best={score,lines:[a,b],halfWidth:separation/2,
+            endpoints:[lo*ux-centre*uy,lo*uy+centre*ux,hi*ux-centre*uy,hi*uy+centre*ux]};
+    }
+    if(best)return best;
+    const near=lines.filter(line=>Math.abs((tip.x-line.x1)*(line.y2-line.y1)-(tip.y-line.y1)*(line.x2-line.x1))/line.length<5*scale);
+    if(!near.length)return null;
+    const a=near[0];
+    return {lines:[a],halfWidth:0,endpoints:[a.x1,a.y1,a.x2,a.y2]};
+}
+
 export function analyseDart(cv,reference,image) {
     if(!reference||reference.width!==image.width||reference.height!==image.height)return {reason:'Leg eerst het lege bord vast.'};
     reference=alignReference(reference,image);
@@ -101,26 +131,23 @@ export function analyseDart(cv,reference,image) {
         if(!candidates.length){result.reason='Geen duidelijke rechte schachtlijn gevonden.';return result;}
         if(!detection.point)return result;
         const tip={x:detection.point.x*width-.5,y:detection.point.y*height-.5};
-        // Prefer shaft edges close to the narrow endpoint, rather than flight edges.
-        const distance=line=>Math.abs((tip.x-line.x1)*(line.y2-line.y1)-(tip.y-line.y1)*(line.x2-line.x1))/line.length;
-        const shaft=candidates.filter(line=>distance(line)<5);
-        if(!shaft.length){result.reason='Lijnen gevonden, maar geen schacht tot bij de vermoedelijke punt.';return result;}
-        const lead=shaft[0],dx=(lead.x2-lead.x1)/lead.length,dy=(lead.y2-lead.y1)/lead.length;
-        const supporting=shaft.filter(line=>Math.abs(((line.x2-line.x1)*dx+(line.y2-line.y1)*dy)/line.length)>.985);
-        const endpoints=supporting.flatMap(line=>[line.x1,line.y1,line.x2,line.y2]);
+        const scale=Math.max(width,height)/640;
+        const shaft=selectShaftLines(candidates,tip,scale);
+        if(!shaft){result.reason='Rechte randen gevonden, maar geen betrouwbare schachtas. Controleer of de blauwe lijnen echt de schacht volgen.';return result;}
+        const endpoints=shaft.endpoints;
         const points=keep(cv.matFromArray(endpoints.length/2,1,cv.CV_32FC2,endpoints)),fit=keep(new cv.Mat());
         cv.fitLine(points,fit,cv.DIST_L2,0,.01,.01);
         let [ux,uy,cx,cy]=fit.data32F;
         // Orient the fitted line towards the previously identified narrow end.
         if((tip.x-cx)*ux+(tip.y-cy)*uy<0){ux=-ux;uy=-uy;}
-        const nearLine=coordinates.filter(([x,y])=>Math.abs((x-cx)*uy-(y-cy)*ux)<3);
+        const nearLine=coordinates.filter(([x,y])=>Math.abs((x-cx)*uy-(y-cy)*ux)<3*scale);
         if(!nearLine.length){result.reason='Schacht zichtbaar, uiteinde niet duidelijk.';return result;}
         const projected=nearLine.map(([x,y])=>({x,y,t:(x-cx)*ux+(y-cy)*uy}));
         const end=Math.max(...projected.map(p=>p.t));
-        const endPixels=projected.filter(p=>p.t>end-1.5);
+        const endPixels=projected.filter(p=>p.t>end-1.5*scale);
         const averageT=endPixels.reduce((sum,p)=>sum+p.t,0)/endPixels.length;
         let x=cx+averageT*ux,y=cy+averageT*uy;
-        if(Math.hypot(x-tip.x,y-tip.y)>8){result.reason='Schachtlijn en puntvorm spreken elkaar tegen. Kies een duidelijker camerahoek.';return result;}
+        if(Math.abs((tip.x-cx)*uy-(tip.y-cy)*ux)>6*scale+shaft.halfWidth){result.reason='Schachtlijn en puntvorm spreken elkaar tegen. Kies een duidelijker camerahoek.';return result;}
         const extension=followDarkTip(reference,corrected,{x,y},{x:ux,y:uy},Math.min((axis.max-axis.min)*.7,Math.max(width,height)*.12));
         result.extension={from:[x,y],to:[extension.x,extension.y]};
         x=extension.x;y=extension.y;
