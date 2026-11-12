@@ -121,3 +121,5 @@ body.tracking #toggle-overlay { padding: 6px 12px; font-size: 12px; margin: 0; }
 body.tracking .camera-stage { margin: 0 auto; min-height: 0; }
 body.tracking .camera-stage video { max-height: calc(100svh - 235px); }
 #pointer-overlay { pointer-events: none; }
+body.tracking #capture-reference { padding: 6px 12px; font-size: 12px; margin: 0; flex-shrink: 0; }
+body.tracking .camera-stage video { max-height: calc(100svh - 275px); }

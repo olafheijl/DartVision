@@ -67,12 +67,14 @@ Na het markeren hervat het livebeeld met een transparante laag: de bull en dubbe
 
 **Detect Board** toont na succesvolle cirkeldetectie dezelfde gekleurde live-uitlijning en Toon/Verberg-knop. De automatische detectie gebruikt cirkels als mogelijke bordcentra en zoekt vervolgens de gekleurde dubbel- en triple-ring met hun standaard maatverhouding. Een losse nummerring of buitenrand wordt niet als dubbelring gebruikt. Bij onvoldoende kleurinformatie wordt de detectie geweigerd. De 20 wordt nog steeds bovenaan verondersteld. De cirkelzoeker herkent geen bordrotatie of perspectief; kies handmatige kalibratie als de markeringen afwijken. Bij een mislukte nieuwe detectie verdwijnt de vorige uitlijning. De eerdere Geometry/Wire/Hybrid-keuze is verwijderd omdat die geen verschillende algoritmes aanstuurde. Handmatige kalibratie gebruikt vier punten en perspectiefcorrectie; sterke lensvervorming wordt hiermee niet gecorrigeerd.
 
-## Oefenen met een blauwe penpunt
+## Eén echte dart herkennen (experimenteel)
 
-1. Start de camera en kalibreer het bord automatisch of handmatig. Controleer de uitlijning.
-2. Maak een **kleine felblauwe markering direct bij de penpunt**, bijvoorbeeld met tape. Gebruik één markering en houd andere blauwe voorwerpen uit beeld.
-3. Kies **Test blauwe penpunt**. De app schakelt naar een scherm met camera en score dat op een telefoon zonder scrollen past.
-4. Houd de markering vlak tegen het bord. Het blauwe kruisje volgt het **midden van de markering**, niet automatisch het fysieke uiteinde van de pen. Houd dat midden dus op de plek die je wilt testen.
-5. Houd een halve seconde stil. De score verschijnt groot boven het camerabeeld. Vlak bij een draad of bij meerdere duidelijke markeringen wordt geen zekere score getoond. Als de markering verdwijnt, verdwijnt ook de vorige score.
+1. Zet de camera vast, met constante verlichting. Kies een licht schuine kijkhoek waarbij punt, schacht en flight zichtbaar zijn. Kalibreer het bord en controleer de uitlijning.
+2. Kies **Test dart herkennen**. Camera en score passen op één telefoonscherm.
+3. Zorg dat het bord leeg is en kies **Leeg bord vastleggen**. Haal je hand weg: de app wacht minstens twee seconden en vervolgens op een rustig beeld.
+4. Prik **één dart** in het bord en haal je hand volledig uit beeld. De app vergelijkt met het lege bord, zoekt een langwerpig nieuw object en schat de punt aan het smalste uiteinde. Een kruisje toont die positie; de score verschijnt groot met het woord **Schatting**.
+5. Verwijder de dart voor de volgende poging. Bij verandering van camera of belichting: opnieuw kalibreren en een nieuw leeg referentiebeeld maken.
 
-De test gebruikt kleurselectie en samenhangende kleurvlekken in de ruwe cameraframes; de getekende kalibratielaag wordt niet mee herkend. Blauw is voorlopig een vaste kleur, afhankelijk van belichting en zichtbare grootte. Dit is een aanwijstest, geen automatische dartregistratie: er worden geen worpen of wedstrijdscores opgeslagen. De geometrie gaat uit van een punt in het bordvlak; afstand tot het bord veroorzaakt perspectieffouten. Na cameraverplaatsing opnieuw kalibreren. Met **Stop penpunttest** keer je terug naar de gewone bediening.
+Geen blauwe markering nodig. Deze eerste versie gebruikt beeldverschil en vormanalyse, geen getraind AI-model. Beweging, grote veranderingen, meerdere losse objecten en een onduidelijke punt leiden tot een melding in plaats van een score. Bij een positie vlak bij een draad wordt geen zekere score gegeven. Er worden geen wedstrijdscores opgeslagen.
+
+**Beperking:** de echte insteekpositie kan met één camera niet betrouwbaar worden bepaald als de punt achter de barrel/flight verborgen zit. Schaduwen, reflecties, automatische belichting en donkere darts tegen donkere vakken kunnen ook verkeerde of ontbrekende detecties geven. De smalste zichtbare contour is een schatting van de punt, geen bewezen insteekpositie. Controleer het kruisje en de score altijd op het echte bord. Sterke perspectiefvervorming vraagt handmatige kalibratie; de automatische kalibratie corrigeert geen bordrotatie.

@@ -1,7 +1,7 @@
 
 import { startCamera } from "./camera.js";
 import { detectBoard } from "./detection.js";
-import { initPointerTracking } from "./pointer.js";
+import { initDartTracking } from "./pointer.js";
 import { initCalibration } from "./calibration.js";
 
 const startButton = document.getElementById("start");
@@ -17,7 +17,7 @@ const calibration = initCalibration(video, canvas, active => {
     calibrateButton.disabled = active;
 });
 
-initPointerTracking(video, calibration);
+initDartTracking(video, calibration);
 
 startButton.addEventListener("click", async () => {
     try {

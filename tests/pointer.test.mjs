@@ -1,18 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { findBluePoint, nearWire } from '../js/pointer.js';
+import { nearWire } from '../js/pointer.js';
 import { invertMatrix, projectPoint } from '../js/calibration.js';
 import { calculateScore } from '../js/scoring.js';
-function image(blobs) {
-    const width=100,height=100,data=new Uint8ClampedArray(width*height*4);
-    for(const [x,y] of blobs) for(let dy=0;dy<3;dy++)for(let dx=0;dx<3;dx++)data.set([15,65,240,255],((y+dy)*width+x+dx)*4);
-    return {width,height,data};
-}
-test('finds a small blue marker but rejects missing or ambiguous points',()=>{
-    assert.deepEqual(findBluePoint(image([[40,50]])),{x:.415,y:.515});
-    assert.equal(findBluePoint(image([])),null);
-    assert.equal(findBluePoint(image([[20,20],[70,70]])),null);
-});
 test('flags ring and sector wires without rejecting sector centres',()=>{
     assert.equal(nearWire(0,-103),false);
     assert.equal(nearWire(0,-99),true);
