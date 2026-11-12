@@ -53,3 +53,33 @@ test('aligns small background translations before calculating differences',async
     for(let y=5;y<95;y++)for(let x=5;x<95;x++)if(aligned.data[(y*width+x)*4]!==image.data[(y*width+x)*4])bad++;
     assert.equal(bad,0);
 });
+
+test('needle refinement stops at a sharp point before a broad cast shadow',async()=>{
+    const {refineNeedleTip}=await import('../js/dart-opencv.js');
+    const width=180,height=100,reference={width,height,data:new Uint8ClampedArray(width*height*4)};
+    for(let i=0;i<reference.data.length;i+=4)reference.data.set([180,180,180,255],i);
+    const image={width,height,data:new Uint8ClampedArray(reference.data)};
+    for(let x=30;x<=105;x++)for(let y=49;y<=51;y++)image.data.set([35,35,35,255],(y*width+x)*4);
+    for(let x=106;x<=135;x++)for(let y=42;y<=58;y++)image.data.set([150,150,150,255],(y*width+x)*4);
+    const tip=refineNeedleTip(reference,image,[30,50],[135,50]);
+    assert.ok(tip);
+    assert.ok(tip.x>100&&tip.x<108,JSON.stringify(tip));
+});
+
+test('a soft uniform shadow does not supply needle evidence',async()=>{
+    const {refineNeedleTip}=await import('../js/dart-opencv.js');
+    const width=180,height=100;
+    const reference={width,height,data:new Uint8ClampedArray(width*height*4).fill(180)};
+    const image={width,height,data:new Uint8ClampedArray(width*height*4).fill(150)};
+    assert.equal(refineNeedleTip(reference,image,[30,50],[135,50]),null);
+});
+
+test('registration is inverted for scoring while display coordinates stay unchanged',async()=>{
+    const {pointInReference}=await import('../js/dart-opencv.js');
+    const point={x:.4,y:.6};
+    const reference=pointInReference(point,{matrix:[1.01,.001,2,-.002,.99,-3]},640,480);
+    const x=reference.x*640-.5,y=reference.y*480-.5;
+    assert.ok(Math.abs((1.01*x+.001*y+2+.5)/640-point.x)<1e-9);
+    assert.ok(Math.abs((-.002*x+.99*y-3+.5)/480-point.y)<1e-9);
+    assert.deepEqual(point,{x:.4,y:.6});
+});

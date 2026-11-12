@@ -106,8 +106,27 @@ Dit bestand maakt een mislukte meting reproduceerbaar voor verdere ontwikkeling.
 
 ### Grenzen van deze testversie
 
-Een volledig verborgen insteekpositie kan één camera niet betrouwbaar bepalen. Schaduwen, reflecties, overlappingen en donkere darts tegen donkere vakken kunnen nog steeds fouten of ontbrekende metingen geven. Gebruik een vaste camera, voldoende gelijkmatig licht en een kijkhoek waarin punt en schacht zichtbaar zijn. Metingen gebruiken maximaal 1280 pixels langs de langste beeldzijde. Kleine beeldregistratiecorrecties vervangen opnieuw kalibreren na echte cameraverplaatsing niet.
+Een volledig verborgen insteekpositie kan één camera niet betrouwbaar bepalen. Schaduwen, reflecties, overlappingen en donkere darts tegen donkere vakken kunnen nog steeds fouten of ontbrekende metingen geven. Gebruik een vaste camera, voldoende gelijkmatig licht en een kijkhoek waarin punt en schacht zichtbaar zijn. De camera wordt bij het starten om 1920×1080 als voorkeur gevraagd; apparaten mogen een andere resolutie leveren. Metingen gebruiken maximaal 1280 pixels langs de langste beeldzijde. Het werkelijke meetformaat staat onder de score en wordt opgeslagen in de meting. Kleine beeldregistratiecorrecties vervangen opnieuw kalibreren na echte cameraverplaatsing niet.
 
 De regressietests gebruiken onder andere donkere en onderbroken punten, verschillende richtingen en resoluties, brede flights, handen, losse fragmenten en wisselende puntposities. Ze bewijzen geen nauwkeurigheid op alle echte borden. Bewaarde echte metingen blijven nodig om die nauwkeurigheid te bepalen.
 
 Ontwikkelcontroles: `node --test tests/*.test.mjs` en `npm run build`.
+
+
+### Verbeteringen op echte metingen
+
+De vergelijking kan nu kleine rotatie-, schaal- en scheefheidsverschillen corrigeren met OpenCV ECC. Alleen begrensde transformaties die het achtergrondverschil verkleinen worden gebruikt; anders blijft de eenvoudige verschuivingscorrectie beschikbaar. De geregistreerde positie wordt voor de score terugvertaald naar het referentiebeeld. De bestaande bordherkenning en score-indeling zijn niet aangepast.
+
+Voor de dartselectie telt ook duidelijke nieuwe beeldinformatie aan de flightzijde mee. Dat helpt bestaande borddraden en schaduwen afwijzen. De punt wordt daarna gezocht als een smalle, scherpe verandering tegenover beide directe zijkanten, in plaats van als het laatste veranderde pixel. Een brede, zachte schaduw mag de punt niet voorbij de echte dart trekken. Wanneer de zichtbare punt bij een overgang naar een donker vlak ophoudt, kan de meting bewust zonder score eindigen.
+
+Deze verbeteringen zijn op drie lokaal aangeleverde exports nagekeken: twee reeksen krijgen drie overeenkomende punten; een donkere reeks houdt één onzekere punt en krijgt geen score. Dat is een kleine regressieset, geen algemene nauwkeurigheidsmeting. De foto's en exports staan niet in Git.
+
+### Opgeslagen metingen opnieuw testen
+
+Voor ontwikkelaars is er `scripts/replay-measurements.py`. Dit draait dezelfde JavaScript-detector met echte OpenCV.js in headless Chromium, reconstrueert de opgeslagen kalibratie en rapporteert overeenstemming en score. Het vereist apart Python Playwright en Chromium; de website heeft die niet nodig. Het script gebruikt een lokaal OpenCV.js-bestand met ingebedde WASM en maakt geen netwerkverbindingen.
+
+```sh
+python scripts/replay-measurements.py meting1.json meting2.json --opencv-js opencv.js --output resultaat.json
+```
+
+Met `--chromium` kun je een bestaand Chromium-programma aanwijzen. Met `--expected verwachtingen.json` kun je private regressie-eisen toevoegen: een JSON-object met per bestandsnaam `agreement`, `accepted` en optioneel `point_bounds` als `[links, boven, rechts, onder]` in beeldpixels. Scores zijn detectoruitvoer; bevestig de echte scorevakken apart. Bewaar camerabeelden en persoonlijke exports buiten de repository.

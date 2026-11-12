@@ -38,8 +38,8 @@ export function initDartTracking(video, calibration) {
             const rgba=new ImageData(new Uint8ClampedArray(image.data),image.width,image.height);
             canvas.getContext('2d').putImageData(rgba,0,0);return canvas.toDataURL('image/png');
         };
-        const data={format:'dartvision-measurement-v1',engine:'thin-sections-v1',createdAt:new Date().toISOString(),
-            width:record.reference.width,height:record.reference.height,
+        const data={format:'dartvision-measurement-v1',engine:'thin-sections-v2',createdAt:new Date().toISOString(),
+            width:record.reference.width,height:record.reference.height,camera:{width:video.videoWidth,height:video.videoHeight},
             reference:encode(record.reference),frames:record.frames.map(encode),
             results:record.results,result:record.result,
             boardCorners:[[0,0],[1,0],[1,1],[0,1]].map(([x,y])=>({image:{x,y},board:calibration.toBoard(x,y)}))};
@@ -54,10 +54,11 @@ export function initDartTracking(video, calibration) {
         frame.getContext('2d').putImageData(new ImageData(new Uint8ClampedArray(image.data),image.width,image.height),0,0);frame.hidden=false;
         stage.classList.add('dart-result');drawDartAlignment(overlay,result);
         const d=result.diagnostics;
-        diagnostics.textContent=d?`${d.fragments} fragment(en) · ${d.usedSections||0} smalle doorsneden · ${result.agreement||0}/3 beelden eens`:`${result.agreement||0}/3 beelden eens`;
+        diagnostics.textContent=d?`${image.width}×${image.height} · ${d.fragments} fragment(en) · ${d.usedSections||0} smalle doorsneden · ${result.agreement||0}/3 beelden eens`:`${result.agreement||0}/3 beelden eens`;
         record={reference,frames:captureFrames,results,result};save.hidden=false;
         if(!result.point){show('—',result.reason);return;}
-        const board=calibration.toBoard(result.point.x,result.point.y);
+        const calibrated=result.boardPoint||result.point;
+        const board=calibration.toBoard(calibrated.x,calibrated.y);
         if(!board||!Number.isFinite(board.x+board.y)){show('—','Kalibreer opnieuw.');return;}
         if(nearWire(board.x,board.y)){show('—','Punt dicht bij een draad. Controleer het roze kruisje handmatig.');return;}
         const score=calculateScore(board.x,board.y);

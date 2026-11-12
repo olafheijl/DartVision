@@ -210,7 +210,7 @@ export function consistentMeasurements(results, toBoard) {
     const visible = results.filter(r => r.point);
     const debug = results[1] || results[0] || {};
     if (visible.length !== 3) return { ...debug, point: undefined, reason: `Punt in ${visible.length}/3 beelden gevonden. ${results.find(r => !r.point)?.reason || ''}`, agreement: visible.length };
-    const positions = visible.map(r => toBoard(r.point.x, r.point.y));
+    const positions = visible.map(r => {const p=r.boardPoint||r.point;return toBoard(p.x,p.y);});
     if (positions.some(p => !p || !Number.isFinite(p.x + p.y))) return { ...debug, point: undefined, reason: 'Kalibreer opnieuw.', agreement: 0 };
     const spread = Math.max(...positions.flatMap(a => positions.map(b => Math.hypot(a.x - b.x, a.y - b.y))));
     const labels=positions.map(p=>calculateScore(p.x,p.y).label);

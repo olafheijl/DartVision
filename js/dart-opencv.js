@@ -34,7 +34,7 @@ export function alignReference(reference,image) {
         const score=loss(x,y);
         if(score<best){best=score;dx=x;dy=y;}
     }
-    if(best>original*.85)return reference;
+    if((dx===0&&dy===0)||best>original*.85)return reference;
     const shifted=new Uint8ClampedArray(data.length);
     for(let y=0;y<height;y++)for(let x=0;x<width;x++){
         const o=(y*width+x)*4,rx=x+dx,ry=y+dy;
@@ -42,7 +42,7 @@ export function alignReference(reference,image) {
         const index=source===data?o:(ry*width+rx)*4;
         for(let c=0;c<4;c++)shifted[o+c]=source[index+c];
     }
-    return {width,height,data:shifted};
+    return {width,height,data:shifted,registration:{matrix:[1,0,-dx,0,1,-dy],improvement:1-best/Math.max(1,original)}};
 }
 
 // Follow low-contrast evidence only in a narrow corridor along a known shaft.
@@ -72,9 +72,98 @@ export function followDarkTip(reference,image,start,direction,maxLength) {
     return last;
 }
 
+export function pointInReference(point,registration,width,height) {
+    if(!registration)return point;
+    const [a,b,tx,c,d,ty]=registration.matrix,det=a*d-b*c;
+    if(!Number.isFinite(det)||Math.abs(det)<.5)return null;
+    const x=point.x*width-.5-tx,y=point.y*height-.5-ty;
+    return {x:((d*x-b*y)/det+.5)/width,y:((-c*x+a*y)/det+.5)/height};
+}
+
+// Resolve the endpoint from a narrow ridge, not from the furthest changed pixel.
+// A soft, broad cast shadow has little contrast against both immediate flanks.
+export function refineNeedleTip(reference,image,from,to,scale=1) {
+    const {width,height}=image,dx=to[0]-from[0],dy=to[1]-from[1],length=Math.hypot(dx,dy);
+    if(length<12*scale)return null;
+    const ux=dx/length,uy=dy/length;
+    const luma=(frame,x,y)=>{
+        const px=Math.round(x),py=Math.round(y);
+        if(px<1||py<1||px>=width-1||py>=height-1)return null;
+        const i=(py*width+px)*4;
+        return .299*frame.data[i]+.587*frame.data[i+1]+.114*frame.data[i+2];
+    };
+    const delta=(x,y)=>{const a=luma(image,x,y),b=luma(reference,x,y);return a===null||b===null?null:a-b;};
+    const start=Math.max(0,length-Math.max(40*scale,length*.5)),runs=[];
+    let current=[],missing=0;
+    for(let t=start;t<=length+6*scale;t+=Math.max(.75,scale)){
+        const cx=from[0]+ux*t,cy=from[1]+uy*t;
+        let best=null;
+        for(let offset=-3*scale;offset<=3*scale;offset+=Math.max(.75,scale)){
+            const x=cx-uy*offset,y=cy+ux*offset,centre=delta(x,y),background=luma(reference,x,y);
+            if(centre===null||background===null)continue;
+            const minimum=Math.max(4,Math.min(20,background*.1));
+            for(const radius of [1.5,2,2.5]){
+                const left=delta(x-uy*radius*scale,y+ux*radius*scale),right=delta(x+uy*radius*scale,y-ux*radius*scale);
+                if(left===null||right===null)continue;
+                const contrast=Math.abs(centre)-Math.max(Math.abs(left),Math.abs(right));
+                if(contrast<minimum)continue;
+                if(!best||contrast>best.contrast)best={x,y,t,contrast};
+            }
+        }
+        if(best){current.push(best);missing=0;}
+        else if(++missing>=3){if(current.length)runs.push(current);current=[];missing=0;}
+    }
+    if(current.length)runs.push(current);
+    const valid=runs.filter(run=>run.length>=5&&run.at(-1).t-run[0].t>=5*scale);
+    if(!valid.length)return null;
+    valid.sort((a,b)=>{
+        const score=run=>(run.at(-1).t-run[0].t)*Math.min(30,run.reduce((s,p)=>s+p.contrast,0)/run.length);
+        return score(b)-score(a);
+    });
+    const run=valid[0],end=run.slice(-2);
+    const x=end.reduce((s,p)=>s+p.x,0)/end.length,y=end.reduce((s,p)=>s+p.y,0)/end.length;
+    const light=luma(reference,x,y),ahead=[3,6,9,12,16].map(t=>luma(reference,x+ux*t*scale,y+uy*t*scale)).filter(v=>v!==null);
+    const lostInDark=length-run.at(-1).t>6*scale&&light>70&&ahead.some(v=>v<light*.45);
+    return {x,y,lostInDark,contrast:end.reduce((s,p)=>s+p.contrast,0)/end.length,supportedLength:run.at(-1).t-run[0].t};
+}
+
+// Align the static scene, including small rotation/zoom changes. Only accept
+// bounded transforms that reduce a robust background loss; the dart is an outlier.
+export function registerReference(cv, reference, image) {
+    if(typeof cv.findTransformECC!=='function')return alignReference(reference,image);
+    const mats=[];const keep=m=>{mats.push(m);return m;};
+    try {
+        const {width,height}=image,scale=Math.min(1,640/Math.max(width,height));
+        const size=new cv.Size(Math.round(width*scale),Math.round(height*scale));
+        const before=keep(new cv.Mat(height,width,cv.CV_8UC4));before.data.set(reference.data);
+        const adjusted=compensateExposure(reference,image);
+        const after=keep(new cv.Mat(height,width,cv.CV_8UC4));after.data.set(adjusted.data);
+        const greyBefore=keep(new cv.Mat()),greyAfter=keep(new cv.Mat()),smallBefore=keep(new cv.Mat()),smallAfter=keep(new cv.Mat());
+        cv.cvtColor(before,greyBefore,cv.COLOR_RGBA2GRAY);cv.cvtColor(after,greyAfter,cv.COLOR_RGBA2GRAY);
+        cv.resize(greyBefore,smallBefore,size,0,0,cv.INTER_AREA);cv.resize(greyAfter,smallAfter,size,0,0,cv.INTER_AREA);
+        const warp=keep(cv.matFromArray(2,3,cv.CV_32F,[1,0,0,0,1,0]));
+        const mask=keep(new cv.Mat());
+        const correlation=cv.findTransformECC(smallBefore,smallAfter,warp,cv.MOTION_AFFINE,new cv.TermCriteria(cv.TermCriteria_COUNT|cv.TermCriteria_EPS,60,1e-5),mask,5);
+        const [a,b,tx,c,d,ty]=Array.from(warp.data32F);
+        if(!Number.isFinite(correlation)||correlation<.8||Math.abs(a-1)>.035||Math.abs(d-1)>.035||Math.abs(b)>.025||Math.abs(c)>.025||Math.hypot(tx,ty)>Math.max(size.width,size.height)*.025)return alignReference(reference,image);
+        warp.data32F[2]=tx/scale;warp.data32F[5]=ty/scale;
+        const aligned=keep(new cv.Mat());
+        cv.warpAffine(before,aligned,warp,new cv.Size(width,height),cv.INTER_LINEAR,cv.BORDER_REFLECT_101);
+        let oldLoss=0,newLoss=0;
+        const alignedAdjusted=compensateExposure({width,height,data:aligned.data},image);
+        for(let i=0;i<image.data.length;i+=64){
+            oldLoss+=Math.min(25,Math.abs(reference.data[i]-adjusted.data[i]));
+            newLoss+=Math.min(25,Math.abs(aligned.data[i]-alignedAdjusted.data[i]));
+        }
+        if(newLoss>=oldLoss*.98)return alignReference(reference,image);
+        return {width,height,data:new Uint8ClampedArray(aligned.data),registration:{matrix:[a,b,tx/scale,c,d,ty/scale],correlation,improvement:1-newLoss/Math.max(1,oldLoss)}};
+    } catch {return alignReference(reference,image);}
+    finally {for(const mat of mats.reverse())mat.delete();}
+}
+
 export function analyseDart(cv,reference,image) {
     if(!reference||reference.width!==image.width||reference.height!==image.height)return {reason:'Leg eerst het lege bord vast.'};
-    reference=alignReference(reference,image);
+    reference=registerReference(cv,reference,image);
     const corrected=compensateExposure(reference,image);
     const {width,height}=image,scale=Math.max(width,height)/640;
     const mats=[];const keep=m=>{mats.push(m);return m;};
@@ -83,6 +172,7 @@ export function analyseDart(cv,reference,image) {
         const after=keep(new cv.Mat(height,width,cv.CV_8UC4));after.data.set(corrected.data);
         const greyBefore=keep(new cv.Mat()),greyAfter=keep(new cv.Mat()),difference=keep(new cv.Mat());
         cv.cvtColor(before,greyBefore,cv.COLOR_RGBA2GRAY);cv.cvtColor(after,greyAfter,cv.COLOR_RGBA2GRAY);
+        cv.GaussianBlur(greyBefore,greyBefore,new cv.Size(3,3),0);cv.GaussianBlur(greyAfter,greyAfter,new cv.Size(3,3),0);
         cv.absdiff(greyBefore,greyAfter,difference);
         const field=difference.data;
         const extracted=extractFragments(field,width,height,scale);
@@ -111,6 +201,13 @@ export function analyseDart(cv,reference,image) {
             if(!measurement)continue;
             const {fit,tipSign}=measurement;
             const direction={x:fit.axis[0]*tipSign,y:fit.axis[1]*tipSign};
+            // The wide rear end must contain substantial new foreground signal.
+            // A shifted board wire or a soft shadow alone is not a dart flight.
+            const projections=group.points.map(p=>(p[0]-fit.centre[0])*direction.x+(p[1]-fit.centre[1])*direction.y);
+            const minProjection=projections.reduce((a,b)=>Math.min(a,b),Infinity),maxProjection=projections.reduce((a,b)=>Math.max(a,b),-Infinity);
+            const rearLimit=minProjection+(maxProjection-minProjection)*.35;
+            const flightPixels=group.points.filter((p,i)=>projections[i]<=rearLimit&&p[2]>=Math.max(35,extracted.strong+12)).length;
+            if(flightPixels<Math.max(16,16*scale*scale))continue;
             const corridor=Math.max(2*scale,Math.min(4*scale,measurement.width/2));
             let endpoint=-Infinity,back=Infinity;
             const near=[];
@@ -126,19 +223,23 @@ export function analyseDart(cv,reference,image) {
             endpoint=terminal.reduce((a,b)=>a+b,0)/terminal.length;
             const start={x:fit.centre[0]+direction.x*endpoint,y:fit.centre[1]+direction.y*endpoint};
             const tip=followDarkTip(reference,corrected,start,direction,Math.min(measurement.span*.5,Math.max(width,height)*.1));
+            const base=[fit.centre[0]+direction.x*back,fit.centre[1]+direction.y*back];
+            const needle=refineNeedleTip(reference,corrected,base,[tip.x,tip.y],scale);
+            const endpointTip=needle||tip;
             const candidate={bounds,lines:localHints,sections:measurement.sections,axis:fit.axis,
-                shaft:{from:[fit.centre[0]+direction.x*back,fit.centre[1]+direction.y*back],to:[tip.x,tip.y]},
-                extension:{from:[start.x,start.y],to:[tip.x,tip.y]},
-                diagnostics:{fragments:group.fragments,usedSections:measurement.sections.filter(s=>s.used).length,rms:measurement.rms,weakThreshold:extracted.weak},
+                shaft:{from:[fit.centre[0]+direction.x*back,fit.centre[1]+direction.y*back],to:[endpointTip.x,endpointTip.y]},
+                extension:{from:[start.x,start.y],to:[endpointTip.x,endpointTip.y]},
+                diagnostics:{registration:reference.registration,flightPixels,needle:needle?{contrast:needle.contrast,length:needle.supportedLength,lostInDark:needle.lostInDark}:null,fragments:group.fragments,usedSections:measurement.sections.filter(s=>s.used).length,rms:measurement.rms,weakThreshold:extracted.weak},
                 score:measurement.score*(1+Math.min(3,group.fragments-1)*.08)};
-            if(measurement.directionClear){candidate.point={x:(tip.x+.5)/width,y:(tip.y+.5)/height};candidate.reason='Schacht en punt geschat uit smalle dwarsdoorsneden.';}
-            else candidate.reason='Schachtlijn gevonden, maar punt en flight zijn niet duidelijk te onderscheiden.';
+            if(measurement.directionClear&&needle&&!needle.lostInDark){candidate.point={x:(needle.x+.5)/width,y:(needle.y+.5)/height};candidate.boardPoint=pointInReference(candidate.point,reference.registration,width,height);candidate.reason='Schacht en punt geschat uit smalle dwarsdoorsneden.';}
+            else candidate.reason=needle?.lostInDark?'De punt verdwijnt tegen een donker vlak; de zichtbare schacht is niet de insteekpositie.':measurement.directionClear?'Schacht gevonden, maar geen voldoende scherpe, smalle punt. Controleer licht en camerahoek.':'Schachtlijn gevonden, maar punt en flight zijn niet duidelijk te onderscheiden.';
+            candidate.rank=candidate.score*Math.sqrt(flightPixels);
             candidates.push(candidate);
         }
-        candidates.sort((a,b)=>(b.score*(b.point?1:.5))-(a.score*(a.point?1:.5)));
+        candidates.sort((a,b)=>b.rank-a.rank);
         if(!candidates.length)return {reason:'Geen voldoende lange, smalle schacht gevonden. Zorg dat punt en schacht zichtbaar zijn.',diagnostics:{fragments:extracted.fragments.length}};
         const best=candidates[0];
-        if(best.point&&candidates.some(other=>other.point&&other.score>best.score*.75&&Math.hypot((best.point.x-other.point.x)*width,(best.point.y-other.point.y)*height)>15*scale)){
+        if(best.point&&candidates.some(other=>other.point&&other.rank>best.rank*.75&&Math.hypot((best.point.x-other.point.x)*width,(best.point.y-other.point.y)*height)>15*scale)){
             return {...best,point:undefined,reason:'Meerdere mogelijke darts of puntposities. Maak het bord leeg en meet één dart.'};
         }
         return best;
