@@ -46,7 +46,7 @@ detectButton.addEventListener("click", async () => {
 
         status.textContent = found
             ? "Circle detected!"
-            : "No circle found. Move closer or adjust lighting.";
+            : "Geen betrouwbare dubbel- en triple-ring gevonden. Verbeter de belichting of kalibreer handmatig.";
 
     } catch (error) {
         calibration.clear();

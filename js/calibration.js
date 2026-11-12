@@ -108,7 +108,7 @@ export function initCalibration(video, canvas, onActive) {
             const scale = circle.radius / 220;
             showOverlay([scale, 0, circle.x - 240 * scale,
                 0, scale, circle.y - 240 * scale, 0, 0, 1]);
-            status.textContent = 'Automatische schatting: controleer bull en dubbels. Dit neemt een ronde dubbelring met 20 bovenaan aan. Gebruik handmatige kalibratie bij afwijking.';
+            status.textContent = 'Automatische schatting: controleer bull en dubbels. Dubbel- en triple-ring gecontroleerd op kleur; 20 bovenaan aangenomen. Gebruik handmatige kalibratie bij afwijking.';
         }
     };
 
