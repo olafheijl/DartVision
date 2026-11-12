@@ -118,11 +118,9 @@ export function initCalibration(video, canvas, onActive) {
             const [bx, by] = projectPoint(inverse, x * canvas.width, y * canvas.height);
             return { x: (bx - 240) * 170 / 220, y: (by - 240) * 170 / 220 };
         },
-        showAutomatic(circle) {
-            const scale = circle.radius / 220;
-            showOverlay([scale, 0, circle.x - 240 * scale,
-                0, scale, circle.y - 240 * scale, 0, 0, 1]);
-            status.textContent = 'Automatische schatting: controleer bull en dubbels. Dubbel- en triple-ring gecontroleerd op kleur; 20 bovenaan aangenomen. Gebruik handmatige kalibratie bij afwijking.';
+        showAutomatic(board) {
+            showOverlay(board.matrix);
+            status.textContent = 'Ellipsuitlijning: controleer bull, dubbels en T20. De richting van 20 wordt bovenaan aangenomen. Bij afwijking: kalibreer handmatig.';
         }
     };
 

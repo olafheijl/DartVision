@@ -48,7 +48,7 @@ detectButton.addEventListener("click", async () => {
         }
 
         status.textContent = found
-            ? "Circle detected!"
+            ? "Bordellips gevonden — controleer de uitlijning."
             : "Geen betrouwbare dubbel- en triple-ring gevonden. Verbeter de belichting of kalibreer handmatig.";
 
     } catch (error) {
