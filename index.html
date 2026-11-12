@@ -18,6 +18,18 @@
     <video id="camera" autoplay playsinline muted>
         <button id="detect" disabled>Detect Board</button>
 
+        <div class="calibration-settings">
+            <label for="calibration-method">
+                Calibration Method
+            </label>
+
+            <select id="calibration-method">
+                <option value="geometry">Geometry</option>
+                <option value="wire">Wire Detection</option>
+                <option value="hybrid" selected>Hybrid</option>
+            </select>
+        </div>
+
         <canvas id="output"></canvas>
     </video>
 </body>

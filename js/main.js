@@ -1,12 +1,16 @@
 
 import { startCamera } from "./camera.js";
 import { detectBoard } from "./detection.js";
+import { initCalibration, getCalibrationMethod } from "./calibration.js";
 
 const startButton = document.getElementById("start");
 const detectButton = document.getElementById("detect");
 const video = document.getElementById("camera");
 const canvas = document.getElementById("output");
 const status = document.getElementById("status");
+
+// Initialize calibration settings
+initCalibration();
 
 startButton.addEventListener("click", async () => {
     try {
