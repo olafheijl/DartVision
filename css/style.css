@@ -123,3 +123,7 @@ body.tracking .camera-stage video { max-height: calc(100svh - 235px); }
 #pointer-overlay { pointer-events: none; }
 body.tracking #capture-reference { padding: 6px 12px; font-size: 12px; margin: 0; flex-shrink: 0; }
 body.tracking .camera-stage video { max-height: calc(100svh - 275px); }
+body.tracking #recognise-dart { background: #0369a1; padding: 8px 16px; margin: 0; flex-shrink: 0; }
+button:disabled { opacity: .5; cursor: default; }
+.camera-stage.dart-result video { visibility: hidden; }
+body.tracking .camera-stage video { max-height: calc(100svh - 320px); }

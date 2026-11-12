@@ -33,6 +33,7 @@
 
     <button id="track-pointer" disabled>Test dart herkennen</button>
     <button id="capture-reference" hidden>Leeg bord vastleggen</button>
+    <button id="recognise-dart" hidden disabled>Herken dart</button>
     <section id="pointer-score" hidden aria-live="polite">
         <span class="score-caption">DARTPUNT · EXPERIMENTEEL</span>
         <strong id="score-value">—</strong>
@@ -40,6 +41,7 @@
     </section>
     <div class="camera-stage" id="camera-stage">
         <video id="camera" autoplay playsinline muted></video>
+        <canvas id="dart-frame" hidden></canvas>
         <canvas id="output" hidden></canvas>
         <canvas id="pointer-overlay" hidden></canvas>
         <p id="calibration-status">Markeer bij kalibratie vier punten op de buitenrand van de dubbelring.</p>

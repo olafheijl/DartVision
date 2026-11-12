@@ -51,9 +51,10 @@ export function findDartPoint(reference, image) {
     const low=longitudinal.filter(p=>p.t<min+length*.22),high=longitudinal.filter(p=>p.t>max-length*.22);
     const spread=points=>Math.max(...points.map(p=>p.s))-Math.min(...points.map(p=>p.s))+1;
     const lowWidth=spread(low),highWidth=spread(high);
-    if(Math.min(lowWidth,highWidth)>Math.max(lowWidth,highWidth)*.65)return {reason:'Punt en flight niet te onderscheiden. Kies een iets schuine camera-instelling en kalibreer opnieuw.'};
+    const geometry={coordinates,axis:{x:cx,y:cy,ux,uy,min,max},width,height};
+    if(Math.min(lowWidth,highWidth)>Math.max(lowWidth,highWidth)*.65)return {geometry,reason:'Punt en flight niet te onderscheiden. Zorg dat de flight en punt zichtbaar zijn.'};
     const narrowLow=lowWidth<highWidth;
     const end=longitudinal.filter(p=>narrowLow?p.t<=min+1.5:p.t>=max-1.5);
     const x=end.reduce((s,p)=>s+p.x,0)/end.length,y=end.reduce((s,p)=>s+p.y,0)/end.length;
-    return {point:{x:(x+.5)/width,y:(y+.5)/height}};
+    return {geometry,point:{x:(x+.5)/width,y:(y+.5)/height}};
 }

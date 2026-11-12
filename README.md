@@ -74,9 +74,21 @@ Plaats de camera vast aan de zijkant en houd het hele speelvlak zichtbaar. Zorg 
 1. Zet de camera vast, met constante verlichting. Kies een licht schuine kijkhoek waarbij punt, schacht en flight zichtbaar zijn. Kalibreer het bord en controleer de uitlijning.
 2. Kies **Test dart herkennen**. Camera en score passen op één telefoonscherm.
 3. Zorg dat het bord leeg is en kies **Leeg bord vastleggen**. Haal je hand weg: de app wacht minstens twee seconden en vervolgens op een rustig beeld.
-4. Prik **één dart** in het bord en haal je hand volledig uit beeld. De app vergelijkt met het lege bord, zoekt een langwerpig nieuw object en schat de punt aan het smalste uiteinde. Een kruisje toont die positie; de score verschijnt groot met het woord **Schatting**.
-5. Verwijder de dart voor de volgende poging. Bij verandering van camera of belichting: opnieuw kalibreren en een nieuw leeg referentiebeeld maken.
+4. Prik **één dart** in het bord, haal je hand volledig uit beeld en druk op **Herken dart**. De app wacht op een rustig beeld en voert één meting uit. OpenCV Canny en HoughLinesP zoeken rechte randen van het nieuwe object; fitLine schat een gezamenlijke schachtlijn. Vorminformatie helpt de richting naar de punt te onderscheiden van de flight. De score verschijnt als **Schatting**, waarna het gemeten beeld wordt stilgezet. Druk opnieuw op Herken dart voor een nieuwe meting.
+5. Verwijder de dart voor de volgende poging; iedere meting vergelijkt met hetzelfde lege bord. Bij verandering van camera of belichting: opnieuw kalibreren en een nieuw leeg referentiebeeld maken.
 
-Geen blauwe markering nodig. Deze eerste versie gebruikt beeldverschil en vormanalyse, geen getraind AI-model. Beweging, grote veranderingen, meerdere losse objecten en een onduidelijke punt leiden tot een melding in plaats van een score. Bij een positie vlak bij een draad wordt geen zekere score gegeven. Er worden geen wedstrijdscores opgeslagen.
+Geen blauwe markering nodig. Deze versie combineert beeldverschil, vormanalyse en OpenCV-lijndetectie, geen getraind AI-model. Een algemene helderheidsverschuiving wordt eerst gecompenseerd. Beweging, grote veranderingen, meerdere losse objecten en een onduidelijke punt leiden tot een melding in plaats van een score. Bij een positie vlak bij een draad wordt geen zekere score gegeven. Er worden geen wedstrijdscores opgeslagen.
 
 **Beperking:** de echte insteekpositie kan met één camera niet betrouwbaar worden bepaald als de punt achter de barrel/flight verborgen zit. Schaduwen, reflecties, automatische belichting en donkere darts tegen donkere vakken kunnen ook verkeerde of ontbrekende detecties geven. De smalste zichtbare contour is een schatting van de punt, geen bewezen insteekpositie. Controleer het kruisje en de score altijd op het echte bord. Sterke perspectiefvervorming vraagt handmatige kalibratie; de automatische kalibratie herkent de bordrotatie niet uit de cijfers.
+
+
+### Uitlijning van de dart controleren
+
+Na **Herken dart** zie je een stilstaand camerabeeld met:
+
+- **Geel kader:** het gevonden langwerpige veranderde object.
+- **Blauwe lijnen:** kandidaat-randen die ongeveer in de schachtrichting lopen.
+- **Groene lijn:** de geschatte schachtas, wanneer voldoende passende lijnen zijn gevonden.
+- **Roze kruisje:** het geschatte uiteinde van de punt. Dit kruisje bepaalt de geschatte score.
+
+Als alleen randen zichtbaar zijn maar punt en flight niet te onderscheiden zijn, verschijnen de randen met een uitleg en geen score. Een onzichtbare insteekpositie kan deze methode niet reconstrueren. Controleer of de groene lijn echt over de schacht loopt en of het roze kruisje bij het bord ligt. De uitlijning is meetinformatie, geen automatische bevestiging van juistheid. Met Herken dart of Leeg bord vastleggen keer je terug naar livebeeld voor een volgende meting.

@@ -1,6 +1,7 @@
 import { calculateScore } from './scoring.js';
-
-import { findDartPoint, frameChange } from './dart.js';
+import { frameChange } from './dart.js';
+import { getOpenCV } from './opencv.js';
+import { analyseDart, drawDartAlignment, compensateExposure } from './dart-opencv.js';
 
 export function nearWire(x,y) {
     const radius=Math.hypot(x,y);
@@ -17,69 +18,88 @@ export function initDartTracking(video, calibration) {
     const value=document.getElementById('score-value');
     const detail=document.getElementById('score-detail');
     const overlay=document.getElementById('pointer-overlay');
+    const frame=document.getElementById('dart-frame');
+    const stage=document.getElementById('camera-stage');
+    const referenceButton=document.getElementById('capture-reference');
+    const recognise=document.getElementById('recognise-dart');
     const sample=document.createElement('canvas');
     const ctx=sample.getContext('2d',{willReadFrequently:true});
-    const referenceButton=document.getElementById('capture-reference');
-    let timer, stable=null, reference=null, previous=null, captureAt=null, quietSince=null;
-    referenceButton.addEventListener('click',()=>{reference=null;stable=null;captureAt=performance.now()+2000;quietSince=null;show('—','Haal je hand weg. Leeg bord vastleggen over 2 seconden…');});
+    let timer,reference,previous,captureAt,quietSince,requestAt,cv;
     const show=(score,message)=>{value.textContent=score;detail.textContent=message;};
+    function live() {
+        stage.classList.remove('dart-result');frame.hidden=true;
+        overlay.getContext('2d').clearRect(0,0,overlay.width,overlay.height);
+    }
     function stop() {
-        clearInterval(timer);timer=null;stable=null;reference=null;previous=null;captureAt=null;quietSince=null;
-        referenceButton.hidden=true;
-        overlay.hidden=true;panel.hidden=true;
+        clearInterval(timer);timer=null;reference=null;previous=null;captureAt=null;quietSince=null;requestAt=null;
+        referenceButton.hidden=true;recognise.hidden=true;recognise.disabled=true;
+        live();overlay.hidden=true;panel.hidden=true;
         document.body.classList.remove('tracking');
         button.textContent='Test dart herkennen';
     }
-    document.addEventListener('calibration-change',()=>{
-        stop();button.disabled=!calibration.ready;
+    referenceButton.addEventListener('click',()=>{
+        live();reference=null;recognise.disabled=true;requestAt=null;
+        captureAt=performance.now()+2000;quietSince=null;
+        show('—','Haal je hand weg. Leeg bord vastleggen over 2 seconden…');
     });
-    button.addEventListener('click',()=>{
-        if(timer) return stop();
-        if(!calibration.ready) return;
+    recognise.addEventListener('click',()=>{
+        if(!reference)return;
+        live();recognise.disabled=true;requestAt=performance.now();quietSince=null;
+        show('…','Dart herkennen: haal je hand weg en houd de camera stil.');
+    });
+    document.addEventListener('calibration-change',()=>{stop();button.disabled=!calibration.ready;});
+    button.addEventListener('click',async()=>{
+        if(timer)return stop();
+        if(!calibration.ready)return;
+        button.disabled=true;
+        try { ({cv}=await getOpenCV()); }
+        catch(error){document.getElementById('status').textContent=error.message;return;}
+        finally {button.disabled=!calibration.ready;}
+        if(!calibration.ready)return;
         document.body.classList.add('tracking');
-        panel.hidden=false;overlay.hidden=false;
-        button.textContent='Stop darttest';
-        referenceButton.hidden=false;
-        reference=null;previous=null;captureAt=null;quietSince=null;
+        panel.hidden=false;overlay.hidden=false;referenceButton.hidden=false;recognise.hidden=false;
+        recognise.disabled=true;button.textContent='Stop darttest';
+        reference=null;previous=null;captureAt=null;quietSince=null;requestAt=null;
         show('—','Maak het bord leeg en kies Leeg bord vastleggen.');
         timer=setInterval(()=>{
             try {
-                if(!calibration.ready) {stop();button.disabled=true;return;}
-                if(video.readyState<2) {stable=null;show('—','Wachten op camerabeeld…');return;}
+                if(!calibration.ready){stop();button.disabled=true;return;}
+                if(video.readyState<2){show('—','Wachten op camerabeeld…');return;}
+                // A result is deliberately frozen for inspection until a new request.
+                if(reference&&captureAt===null&&requestAt===null)return;
                 const scale=640/Math.max(video.videoWidth,video.videoHeight);
                 sample.width=Math.round(video.videoWidth*scale);sample.height=Math.round(video.videoHeight*scale);
                 ctx.drawImage(video,0,0,sample.width,sample.height);
-                overlay.width=sample.width;overlay.height=sample.height;
                 const image=ctx.getImageData(0,0,sample.width,sample.height);
-                const moving=frameChange(previous,image)>.008;
+                const correctedPrevious=previous?compensateExposure(previous,image):image;
+                const moving=frameChange(previous,correctedPrevious)>.008;
                 previous=image;
                 const now=performance.now();
-                if(moving)quietSince=null;
-                else if(quietSince===null)quietSince=now;
-                if(captureAt!==null) {
-                    if(now<captureAt || quietSince===null || now-quietSince<600) {show('—','Leeg bord vastleggen: houd camera stil en haal je hand weg.');return;}
-                    reference=image;captureAt=null;stable=null;
-                    show('—','Referentie vastgelegd. Prik nu één dart in het bord.');return;
+                if(moving)quietSince=null;else if(quietSince===null)quietSince=now;
+                const quiet=quietSince!==null&&now-quietSince>=700;
+                if(captureAt!==null){
+                    if(now<captureAt||!quiet){show('—','Leeg bord vastleggen: houd camera stil en haal je hand weg.');return;}
+                    reference=image;captureAt=null;recognise.disabled=false;
+                    show('—','Referentie gereed. Prik één dart in het bord en kies Herken dart.');return;
                 }
-                if(!reference){show('—','Maak het bord leeg en kies Leeg bord vastleggen.');return;}
-                if(moving||quietSince===null||now-quietSince<600){stable=null;show('…','Beweging zichtbaar — wacht en haal je hand weg.');return;}
-                const detection=findDartPoint(reference,image);
-                const point=detection.point;
-                if(!point){stable=null;show('—',detection.reason);return;}
-                const cross=overlay.getContext('2d'),px=point.x*overlay.width,py=point.y*overlay.height;
-                cross.strokeStyle='#38bdf8';cross.lineWidth=2;
-                cross.beginPath();cross.arc(px,py,7,0,Math.PI*2);cross.moveTo(px-12,py);cross.lineTo(px+12,py);cross.moveTo(px,py-12);cross.lineTo(px,py+12);cross.stroke();
-                const board=calibration.toBoard(point.x,point.y);
-                if(!board || !Number.isFinite(board.x+board.y)) {stable=null;show('—','Kalibreer opnieuw.');return;}
-                if(nearWire(board.x,board.y)) {stable=null;show('—','Punt dicht bij een draad — controleer het bord handmatig.');return;}
+                if(!reference)return;
+                if(requestAt===null)return;
+                if(now-requestAt>10000){requestAt=null;recognise.disabled=false;show('—','Beeld blijft bewegen. Zet de camera vast en probeer opnieuw.');return;}
+                if(!quiet)return;
+                requestAt=null;recognise.disabled=false;
+                const result=analyseDart(cv,reference,image);
+                frame.width=overlay.width=image.width;frame.height=overlay.height=image.height;
+                frame.getContext('2d').putImageData(image,0,0);frame.hidden=false;
+                stage.classList.add('dart-result');
+                drawDartAlignment(overlay,result);
+                if(!result.point){show('—',result.reason+' Bekijk de lijnen of probeer opnieuw.');return;}
+                const board=calibration.toBoard(result.point.x,result.point.y);
+                if(!board||!Number.isFinite(board.x+board.y)){show('—','Kalibreer opnieuw.');return;}
+                if(nearWire(board.x,board.y)){show('—','Punt dicht bij een draad. Controleer het roze kruisje handmatig.');return;}
                 const score=calculateScore(board.x,board.y);
-                if(!stable || stable.label!==score.label || Math.hypot(board.x-stable.x,board.y-stable.y)>3) {
-                    stable={...board,label:score.label,since:now};
-                }
-                if(now-stable.since<500) show('…','Mogelijke dartpunt gevonden — controleren…');
-                else show(String(score.score),`Schatting: ${score.label} · ${score.score} punten`);
-            } catch {stable=null;overlay.getContext('2d').clearRect(0,0,overlay.width,overlay.height);show('—','Dartmeting mislukt. Stop en probeer opnieuw.');}
-        },100);
+                show(String(score.score),`Schatting: ${score.label} · groen: schacht, roze: punt. Beeld stilgezet.`);
+            } catch(error){requestAt=null;recognise.disabled=!reference;live();show('—','Herkenning mislukt: '+error.message);}
+        },150);
     });
     document.addEventListener('visibilitychange',()=>{if(document.hidden)stop();});
 }
