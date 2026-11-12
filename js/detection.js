@@ -4,7 +4,6 @@ export async function detectBoard(video, canvas) {
     const { cv } = await getOpenCV();
     captureFrame(video, canvas);
     const { width, height } = canvas;
-    const ctx = canvas.getContext("2d");
 
     // Convert image to OpenCV matrices
     const src = cv.imread(canvas);
@@ -35,7 +34,7 @@ export async function detectBoard(video, canvas) {
         );
 
         if (circles.cols === 0) {
-            return false;
+            return null;
         }
 
         // Select circle closest to image center
@@ -58,14 +57,7 @@ export async function detectBoard(video, canvas) {
             }
         }
 
-        // Draw detected circle
-        ctx.beginPath();
-        ctx.arc(best.x, best.y, best.radius, 0, 2 * Math.PI);
-        ctx.strokeStyle = "#00FF00";
-        ctx.lineWidth = 4;
-        ctx.stroke();
-
-        return true;
+        return best;
 
     } finally {
         src.delete();

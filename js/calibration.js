@@ -81,15 +81,37 @@ export function initCalibration(video, canvas, onActive) {
             const from = keep(cv.matFromArray(4, 1, cv.CV_32FC2, target));
             const to = keep(cv.matFromArray(4, 1, cv.CV_32FC2, points.flat()));
             const transform = keep(cv.getPerspectiveTransform(from, to));
-            drawOverlay(ctx, Array.from(transform.data64F));
-            stage.classList.remove('frozen');
-            overlayVisible = true;
-            preview.textContent = 'Verberg uitlijning';
-            preview.hidden = false;
+            showOverlay(Array.from(transform.data64F));
             status.textContent = 'Controleer de gekleurde bull en D20 / D6 / D3 / D11 op het livebeeld. Camera verplaatst? Kalibreer opnieuw.';
         } catch (error) { status.textContent = error.message; stage.classList.remove('frozen'); canvas.hidden = true; }
         finally { for (const mat of mats.reverse()) mat.delete(); finish(); }
     });
+    function clearOverlay() {
+        preview.hidden = true;
+        canvas.hidden = true;
+        canvas.style.pointerEvents = 'none';
+        stage.classList.remove('frozen');
+        canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
+    }
+    function showOverlay(matrix) {
+        drawOverlay(canvas.getContext('2d'), matrix);
+        stage.classList.remove('frozen');
+        canvas.style.pointerEvents = 'none';
+        overlayVisible = true;
+        canvas.hidden = false;
+        preview.textContent = 'Verberg uitlijning';
+        preview.hidden = false;
+    }
+    return {
+        clear: clearOverlay,
+        showAutomatic(circle) {
+            const scale = circle.radius / 220;
+            showOverlay([scale, 0, circle.x - 240 * scale,
+                0, scale, circle.y - 240 * scale, 0, 0, 1]);
+            status.textContent = 'Automatische schatting: controleer bull en dubbels. Dit neemt een ronde dubbelring met 20 bovenaan aan. Gebruik handmatige kalibratie bij afwijking.';
+        }
+    };
+
 }
 
 export function projectPoint(matrix, x, y) {

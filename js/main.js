@@ -11,7 +11,7 @@ const status = document.getElementById("status");
 
 // Initialize calibration settings
 const calibrateButton = document.getElementById("calibrate");
-initCalibration(video, canvas, active => {
+const calibration = initCalibration(video, canvas, active => {
     detectButton.disabled = active;
     calibrateButton.disabled = active;
 });
@@ -36,16 +36,21 @@ detectButton.addEventListener("click", async () => {
     status.textContent = "Detecting dartboard...";
 
     try {
-        document.getElementById('toggle-overlay').hidden = true;
-        document.getElementById('camera-stage').classList.add('frozen');
-        canvas.hidden = false;
+        calibration.clear();
         const found = await detectBoard(video, canvas);
+        if (found) calibration.showAutomatic(found);
+        else {
+            calibration.clear();
+            document.getElementById('calibration-status').textContent = 'Geen bord gevonden. Probeer opnieuw of kalibreer handmatig.';
+        }
 
         status.textContent = found
             ? "Circle detected!"
             : "No circle found. Move closer or adjust lighting.";
 
     } catch (error) {
+        calibration.clear();
+        document.getElementById("calibration-status").textContent = "Detectie mislukt. Probeer opnieuw of kalibreer handmatig.";
         status.textContent = error.message;
     } finally {
         detectButton.disabled = false;
