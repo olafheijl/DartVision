@@ -1,13 +1,16 @@
+import { getOpenCV } from './opencv-runtime.js';
+
 // Minimal capture harness. Add future recognition experiments here, using the
 // untouched reference and throw frames; no dart or motion detection runs yet.
-export function initDartTest(video, calibration) {
-    const start = document.getElementById('test-dart');
-    const captureReference = document.getElementById('capture-empty-board');
-    const captureThrow = document.getElementById('capture-thrown-dart');
+export async function initDartTest(video, calibration) {
+    const startButton = document.getElementById('test-dart');
+    const captureReferenceButton = document.getElementById('capture-empty-board');
+    const captureThrowButton = document.getElementById('capture-thrown-dart');
     const panel = document.getElementById('dart-test-panel');
     const status = document.getElementById('dart-test-status');
     const referenceCanvas = document.getElementById('empty-board-frame');
     const throwCanvas = document.getElementById('thrown-dart-frame');
+    const testCanvas = document.getElementById('difference-canvas');
     const viewport = document.querySelector('.camera-viewport');
     let active = false, reference = null, afterThrow = null;
 
@@ -19,13 +22,13 @@ export function initDartTest(video, calibration) {
             canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
             canvas.hidden = true;
         }
-        captureThrow.disabled = true;
+        captureThrowButton.disabled = true;
     }
     function stop() {
         active = false; reset();
         document.body.classList.remove('dart-testing');
-        panel.hidden = captureReference.hidden = captureThrow.hidden = true;
-        start.textContent = 'Test dart herkennen';
+        panel.hidden = captureReferenceButtonButton.hidden = captureThrowButton.hidden = true;
+        startButton.textContent = 'Test dart herkennen';
     }
     function capture(canvas) {
         if (!calibration.ready) throw new Error('Kalibreer het bord opnieuw.');
@@ -39,33 +42,76 @@ export function initDartTest(video, calibration) {
         canvas.hidden = false;
         return image;
     }
-    start.addEventListener('click', () => {
+    startButton.addEventListener('click', () => {
         if (active) return stop();
         if (!calibration.ready) return;
         reset(); active = true;
         document.body.classList.add('dart-testing');
-        panel.hidden = captureReference.hidden = captureThrow.hidden = false;
-        start.textContent = 'Stop darttest';
+        panel.hidden = captureReferenceButtonButton.hidden = captureThrowButton.hidden = false;
+        startButton.textContent = 'Stop darttest';
         status.textContent = 'Maak het bord leeg en leg het referentiebeeld vast.';
     });
-    captureReference.addEventListener('click', () => {
+    captureReferenceButtonButton.addEventListener('click', () => {
         try {
             reference = capture(referenceCanvas);
             afterThrow = null; throwCanvas.hidden = true;
             throwCanvas.getContext('2d').clearRect(0, 0, throwCanvas.width, throwCanvas.height);
-            captureThrow.disabled = false;
+            captureThrowButton.disabled = false;
             status.textContent = `Leeg bord vastgelegd (${reference.width}×${reference.height}). Gooi een pijl, haal je hand weg en druk op Ik heb een pijl gegooid.`;
         } catch (error) { status.textContent = error.message; }
     });
-    captureThrow.addEventListener('click', () => {
+    captureThrowButton.addEventListener('click', () => {
         if (!reference) return;
+
+        captureThrowButton.disabled = true;
+        const mats = [];
+
         try {
+            const { cv } = await getOpenCV();
+
+            if (!active || !reference || !calibration.ready) {
+                status.textContent = 'Niet klaar voor het verschil';
+                return;
+            }
+
             afterThrow = capture(throwCanvas);
+            if (
+                reference.width !== afterThrow.width ||
+                reference.height !== afterThrow.height
+            ) {
+                throw new Error(
+                    'De beeldafmetingen zijn veranderd. Leg het lege bord opnieuw vast.'
+                );
+            }
+
             status.textContent = 'Beeld na de worp vastgelegd. Beide beelden staan klaar voor een volgende herkenningstechniek.';
-        } catch (error) { status.textContent = error.message; }
+            const referenceMat = cv.matFromImageData(reference);
+            mats.push(referenceMat);
+
+            const afterThrowMat = cv.matFromImageData(afterThrow);
+            mats.push(afterThrowMat);
+
+            const differenceMat = new cv.Mat();
+            mats.push(differenceMat);
+
+            testCanvas.hidden = false;
+            cv.absdiff(referenceMat, afterThrowMat, differenceMat);
+            cv.imshow('difference-canvas', differenceMat);
+            
+            status.textContent = 'Verschilbeeld gereed: lichte pixels geven veranderingen aan.';
+
+        } catch (error) { 
+            status.textContent = error.message; 
+        } finally {
+            for (const mat of mats) {
+                mat.delete();
+            }
+
+            captureThrow.disabled = !active || !reference || !calibration.ready;
+        }
     });
     function calibrationChanged() {
-        stop(); start.disabled = !calibration.ready;
+        stop(); startButton.disabled = !calibration.ready;
     }
     document.addEventListener('calibration-change', calibrationChanged);
     video.addEventListener('resize', () => { if (!calibration.ready) calibrationChanged(); });
