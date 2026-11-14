@@ -31,22 +31,20 @@
     <button id="cancel-calibration" hidden>Annuleren</button>
     <button id="toggle-overlay" hidden>Verberg uitlijning</button>
 
-    <button id="track-pointer" disabled>Test dart herkennen</button>
-    <button id="capture-reference" hidden>Leeg bord vastleggen</button>
-    <button id="recognise-dart" hidden disabled>Herken dart</button>
-    <button id="save-measurement" hidden>Bewaar meting</button>
-    <section id="pointer-score" hidden aria-live="polite">
-        <span class="score-caption">DARTPUNT · EXPERIMENTEEL</span>
-        <strong id="score-value">—</strong>
-        <span id="score-detail">Kalibreer eerst het bord.</span>
-        <small id="dart-diagnostics"></small>
+    <button id="test-dart" disabled>Test dart herkennen</button>
+    <button id="capture-empty-board" hidden>Leeg bord vastleggen</button>
+    <button id="capture-thrown-dart" hidden disabled>Ik heb een pijl gegooid</button>
+    <section id="dart-test-panel" hidden>
+        <p id="dart-test-status" role="status">Kalibreer eerst het bord.</p>
+        <div class="captured-frames">
+            <figure><figcaption>Leeg bord</figcaption><canvas id="empty-board-frame" hidden></canvas></figure>
+            <figure><figcaption>Na de worp</figcaption><canvas id="thrown-dart-frame" hidden></canvas></figure>
+        </div>
     </section>
     <div class="camera-viewport">
     <div class="camera-stage" id="camera-stage">
         <video id="camera" autoplay playsinline muted></video>
-        <canvas id="dart-frame" hidden></canvas>
         <canvas id="output" hidden></canvas>
-        <canvas id="pointer-overlay" hidden></canvas>
         <p id="calibration-status">Markeer bij kalibratie vier punten op de buitenrand van de dubbelring.</p>
     </div>
     </div>

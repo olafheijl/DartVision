@@ -1,10 +1,10 @@
 # DartVision
 
-Een dartteller met camerabeeld en OpenCV. De bestaande pagina en detectiewerking blijven gelijk.
+Een basis met OpenCV-bordherkenning en handmatige beeldopnames voor nieuwe dartproeven.
 
 ## Code-overzicht
 
-De bestandsnamen geven aan welk onderdeel ze uitvoeren. Begin voor de **dartherkenning** bij `js/dart-detection.js` en `js/dart-shaft-analysis.js`; de bediening daarvan staat in `js/dart-test-controller.js`.
+De bestandsnamen geven aan welk onderdeel ze uitvoeren. De bordherkenning staat los van de minimale darttest. Begin voor nieuwe proeven bij `js/dart-test-controller.js`.
 
 | Bestand | Verantwoordelijkheid |
 | --- | --- |
@@ -15,13 +15,8 @@ De bestandsnamen geven aan welk onderdeel ze uitvoeren. Begin voor de **dartherk
 | [`js/opencv-runtime.js`](js/opencv-runtime.js) | Wacht op OpenCV en legt gedeelde cameraframes vast. |
 | [`js/board-detection.js`](js/board-detection.js) | Automatische bordherkenning via de dubbel- en triple-ring. |
 | [`js/board-calibration.js`](js/board-calibration.js) | Kalibratie, borduitlijning en omzetting van beeldpositie naar bordcoördinaten. |
-| [`js/board-scoring.js`](js/board-scoring.js) | Bepaalt vanuit bordcoördinaten het scorevak en de punten. |
-| [`js/dart-test-controller.js`](js/dart-test-controller.js) | Regelt de darttest: referentie vastleggen, drie beelden meten, resultaat tonen en meting bewaren. |
-| [`js/frame-motion.js`](js/frame-motion.js) | Meet beeldverandering om te wachten op een rustig beeld. |
-| [`js/dart-detection.js`](js/dart-detection.js) | OpenCV-dartdetectie: beelduitlijning, verschilbeeld, schacht- en puntmeting en diagnostische tekenlaag. |
-| [`js/dart-shaft-analysis.js`](js/dart-shaft-analysis.js) | Geometrische meetkern: fragmenten koppelen, smalle dwarsdoorsneden meten, schachtlijn bepalen en metingen vergelijken. |
+| [`js/dart-test-controller.js`](js/dart-test-controller.js) | Regelt de drie testknoppen en bewaart de beelden vóór en na een worp. |
 | [`scripts/start-dev-server.mjs`](scripts/start-dev-server.mjs) | Lokale HTTPS-server en ontwikkelcertificaten. |
-| [`scripts/replay-dart-measurements.py`](scripts/replay-dart-measurements.py) | Opgeslagen dartmetingen opnieuw door dezelfde detector halen. |
 | `tests/*.test.mjs` | Tests met dezelfde onderdeelnamen als de bronbestanden. |
 
 `start-local.cmd` blijft de Windows-startknop. `package.json` bevat de start- en buildcommando's. `dist/` is gegenereerde uitvoer; pas de bronbestanden aan en maak daarna een nieuwe build.
@@ -93,64 +88,17 @@ Na het markeren hervat het livebeeld met een transparante laag: de bull en dubbe
 
 Plaats de camera vast aan de zijkant en houd het hele speelvlak zichtbaar. Zorg voor voldoende verlichting. Zeer smalle kijkhoeken, occlusie en sterke lensvervorming blijven lastig; kies bij afwijkingen de handmatige vierpuntskalibratie. De automatische methode leest geen cijfers en neemt de richting van 20 bovenaan aan. Controleer daarom altijd of D20, D6, D3 en D11 kloppen. Handmatig markeren bepaalt ook deze richting. Een nieuw mislukte detectie wist de vorige uitlijning.
 
-## Eén echte dart herkennen (experimenteel)
+## Nieuwe basis voor dartproeven
 
-1. Zet de camera vast. Start de camera, kalibreer het bord en controleer de bestaande uitlijning.
-2. Kies **Test dart herkennen**. Camera, score en knoppen passen op één telefoonscherm.
-3. Maak het bord leeg en kies **Leeg bord vastleggen**. Haal je hand weg. Na minstens twee seconden neemt de app drie rustige, verschillende videobeelden en maakt daarvan een mediaanreferentie.
-4. Prik **één dart** in het bord, haal je hand uit beeld en druk op **Herken dart**.
-5. De app verzamelt drie rustige beelden en meet de dart in ieder beeld afzonderlijk. De resultaten moeten binnen 3 mm van elkaar liggen volgens de kalibratie en hetzelfde scorevak aanwijzen. Anders verschijnt een melding in plaats van een score.
-6. Het middelste meetbeeld wordt stilgezet met de uitlijning. Verwijder de dart voor een volgende poging en druk opnieuw op Herken dart. Na cameraverplaatsing: opnieuw kalibreren en een nieuwe referentie vastleggen.
+1. Start de camera en herken of kalibreer het bord.
+2. Kies **Test dart herkennen** om de eenvoudige testmodus te openen.
+3. Kies **Leeg bord vastleggen**. Het huidige camerabeeld wordt als vaste referentie bewaard.
+4. Gooi of prik een pijl, haal je hand weg en kies **Ik heb een pijl gegooid**. Er wordt een tweede beeld vastgelegd.
 
-### Uitlijning beoordelen
+De camera blijft live. Twee kleine voorbeelden tonen het lege bord en het beeld na de worp. Opnieuw een worp vastleggen vervangt alleen het tweede beeld; de referentie blijft hetzelfde. Een nieuwe lege-bordopname wist het vorige worpbeeld. Stoppen, opnieuw kalibreren of de pagina herladen wist beide beelden. Er worden geen bestanden gedownload of naar een server gestuurd.
 
-- **Geel kader:** samengevoegde delen van het mogelijke dartobject.
-- **Blauwe dwarsstreepjes:** de smalle doorsneden die de schachtlijn bepalen.
-- **Grijze dwarsstreepjes:** bredere stukken die buiten de lijnberekening vallen, zoals de flight.
-- **Groene lijn:** de geschatte schachtas.
-- **Oranje lijnstuk:** de extra zoekactie naar een zwak zichtbare punt voorbij de sterke contour.
-- **Roze kruisje:** de geschatte insteekpositie.
-- **Oranje cirkels bij twijfel:** puntkandidaten die tussen de beelden niet overeenkwamen.
+De oude dartdetectie, bewegingsdetectie, schacht-/puntanalyse, scoreberekening en replayfunctie zijn verwijderd. Er wordt nog niet automatisch bepaald of er een dart in beeld is. De drie knoppen vormen de basis om toekomstige technieken afzonderlijk te testen.
 
-Onder de score staan het aantal gekoppelde fragmenten, gebruikte smalle doorsneden en de overeenstemming tussen de drie beelden. De kleuren laten zien wat is gemeten; ze zijn geen bevestiging dat de positie juist is. Dicht bij een draad wordt geen zekere score getoond.
+Alle bediening en beeldopname staat in `js/dart-test-controller.js`. De teruggegeven `getFrames()` geeft `{ reference, afterThrow }` als `ImageData` voor een volgende proef. OpenCV blijft beschikbaar voor de bestaande bordherkenning; de nieuwe testmodus gebruikt alleen de camerabeelden.
 
-### Wat de nieuwe methode doet
-
-De bordherkenning en kalibratie blijven ongewijzigd. Alleen de dartmeting is vervangen. Na belichtingscompensatie en correctie van kleine beeldverschuivingen zoekt de app veranderingen op grijswaardenbeelden. Sterke delen geven een kandidaat; zwakkere delen kunnen daarbij aansluiten. Losse delen worden alleen gekoppeld als ze voldoende in elkaars verlengde liggen. De dart hoeft dus niet één verbonden vlek te zijn.
-
-De meetkern verdeelt de dart langs verschillende mogelijke assen in dwarsdoorsneden. Hij sluit brede delen uit en past met OpenCV `fitLine`/Huber een robuuste lijn door de smalle delen. OpenCV Canny/Hough geeft mogelijke richtingen; de grootte en het midden van de flight bepalen de uiteindelijke lijn niet. Een lokale zoekactie langs de lijn verfijnt het zwakke uiteinde. Elk van de drie beelden doorloopt deze meting onafhankelijk.
-
-Het ontwerp is geïnspireerd op de smalle-schachtbenadering beschreven in [OpenDarts Ares](https://github.com/richiela/opendarts/blob/main/opendarts/engines/ares/detection.py) en de kenmerkpunt-/lijnbenadering van [OpenCV Steel Darts](https://github.com/hanneshoettinger/opencv-steel-darts/blob/master/DartsRecognition.py). De JavaScript-meetkern is een eigen implementatie. OpenDarts gebruikt meerdere camera's; de prestaties van dat volledige systeem gelden niet automatisch voor deze app met één camera.
-
-### Een meting bewaren
-
-Met **Bewaar meting** download je lokaal een JSON-bestand met het referentiebeeld, de drie meetbeelden als PNG, hun afzonderlijke resultaten, het gecombineerde resultaat en de kalibratie van de beeldhoeken. Ook een mislukte herkenning kan worden bewaard. Er worden geen beelden naar een server gestuurd. Het bestand bevat camerabeelden; deel alleen opnames die je wilt delen.
-
-Dit bestand maakt een mislukte meting reproduceerbaar voor verdere ontwikkeling. De app heeft nog geen importscherm voor opgeslagen metingen. Er worden geen worpen of wedstrijdscores geregistreerd.
-
-### Grenzen van deze testversie
-
-Een volledig verborgen insteekpositie kan één camera niet betrouwbaar bepalen. Schaduwen, reflecties, overlappingen en donkere darts tegen donkere vakken kunnen nog steeds fouten of ontbrekende metingen geven. Gebruik een vaste camera, voldoende gelijkmatig licht en een kijkhoek waarin punt en schacht zichtbaar zijn. De camera wordt bij het starten om 1920×1080 als voorkeur gevraagd; apparaten mogen een andere resolutie leveren. Metingen gebruiken maximaal 1280 pixels langs de langste beeldzijde. Het werkelijke meetformaat staat onder de score en wordt opgeslagen in de meting. Kleine beeldregistratiecorrecties vervangen opnieuw kalibreren na echte cameraverplaatsing niet.
-
-De regressietests gebruiken onder andere donkere en onderbroken punten, verschillende richtingen en resoluties, brede flights, handen, losse fragmenten en wisselende puntposities. Ze bewijzen geen nauwkeurigheid op alle echte borden. Bewaarde echte metingen blijven nodig om die nauwkeurigheid te bepalen.
-
-Ontwikkelcontroles: `node --test tests/*.test.mjs` en `npm run build`.
-
-
-### Verbeteringen op echte metingen
-
-De vergelijking kan nu kleine rotatie-, schaal- en scheefheidsverschillen corrigeren met OpenCV ECC. Alleen begrensde transformaties die het achtergrondverschil verkleinen worden gebruikt; anders blijft de eenvoudige verschuivingscorrectie beschikbaar. De geregistreerde positie wordt voor de score terugvertaald naar het referentiebeeld. De bestaande bordherkenning en score-indeling zijn niet aangepast.
-
-Voor de dartselectie telt ook duidelijke nieuwe beeldinformatie aan de flightzijde mee. Dat helpt bestaande borddraden en schaduwen afwijzen. De punt wordt daarna gezocht als een smalle, scherpe verandering tegenover beide directe zijkanten, in plaats van als het laatste veranderde pixel. Een brede, zachte schaduw mag de punt niet voorbij de echte dart trekken. Wanneer de zichtbare punt bij een overgang naar een donker vlak ophoudt, kan de meting bewust zonder score eindigen.
-
-Deze verbeteringen zijn op drie lokaal aangeleverde exports nagekeken: twee reeksen krijgen drie overeenkomende punten; een donkere reeks houdt één onzekere punt en krijgt geen score. Dat is een kleine regressieset, geen algemene nauwkeurigheidsmeting. De foto's en exports staan niet in Git.
-
-### Opgeslagen metingen opnieuw testen
-
-Voor ontwikkelaars is er `scripts/replay-dart-measurements.py`. Dit draait dezelfde JavaScript-detector met echte OpenCV.js in headless Chromium, reconstrueert de opgeslagen kalibratie en rapporteert overeenstemming en score. Het vereist apart Python Playwright en Chromium; de website heeft die niet nodig. Het script gebruikt een lokaal OpenCV.js-bestand met ingebedde WASM en maakt geen netwerkverbindingen.
-
-```sh
-python scripts/replay-dart-measurements.py meting1.json meting2.json --opencv-js opencv.js --output resultaat.json
-```
-
-Met `--chromium` kun je een bestaand Chromium-programma aanwijzen. Met `--expected verwachtingen.json` kun je private regressie-eisen toevoegen: een JSON-object met per bestandsnaam `agreement`, `accepted` en optioneel `point_bounds` als `[links, boven, rechts, onder]` in beeldpixels. Scores zijn detectoruitvoer; bevestig de echte scorevakken apart. Bewaar camerabeelden en persoonlijke exports buiten de repository.
+Controles: `node --test tests/*.test.mjs` en `npm run build`.

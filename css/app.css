@@ -33,23 +33,6 @@ canvas {
 }
 
 
-.calibration-settings {
-    margin: 20px auto;
-    max-width: 400px;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-}
-
-.calibration-settings select {
-    padding: 12px;
-    border-radius: 8px;
-    background: #1f2937;
-    color: white;
-    border: 1px solid #4b5563;
-    font-size: 16px;
-}
-
 .camera-stage {
     position: relative;
     width: fit-content;
@@ -90,42 +73,19 @@ canvas {
 }
 button { margin: 4px; }
 
-#pointer-score {
-    background: linear-gradient(135deg, #0c4a6e, #172554);
-    border: 1px solid #38bdf8;
-    border-radius: 16px;
-    padding: 12px 20px;
-    max-width: 560px;
-    margin: 10px auto;
-}
-#pointer-score span, #pointer-score strong { display: block; }
-.score-caption { font-size: 11px; letter-spacing: 2px; color: #7dd3fc; }
-#score-value { font-size: 52px; line-height: 1.1; }
-#score-detail { font-size: 13px; line-height: 1.4; }
-body.tracking {
-    height: 100svh;
-    box-sizing: border-box;
-    overflow: hidden;
-    padding: 8px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 4px;
-}
-body.tracking > h1, body.tracking > #start, body.tracking > #detect,
-body.tracking > #status, body.tracking > #calibrate,
-body.tracking > #cancel-calibration, body.tracking #calibration-status { display: none; }
-body.tracking #pointer-score { order: -2; margin: 0; width: min(90%, 560px); flex-shrink: 0; }
-body.tracking #track-pointer { order: -1; margin: 0; padding: 8px 16px; flex-shrink: 0; }
-body.tracking #toggle-overlay { padding: 6px 12px; font-size: 12px; margin: 0; }
-body.tracking .camera-stage { margin: 0 auto; min-height: 0; }
-#pointer-overlay { pointer-events: none; }
-body.tracking #capture-reference { padding: 6px 12px; font-size: 12px; margin: 0; flex-shrink: 0; }
-body.tracking #recognise-dart { background: #0369a1; padding: 8px 16px; margin: 0; flex-shrink: 0; }
 button:disabled { opacity: .5; cursor: default; }
-.camera-stage.dart-result video { visibility: hidden; }
-
-#dart-diagnostics { display: block; font-size: 11px; color: #a5d9ec; margin-top: 4px; }
-body.tracking #save-measurement { padding: 6px 12px; font-size: 12px; margin: 0; flex-shrink: 0; }
-body.tracking .camera-viewport { flex: 1; min-height: 0; width: 100%; display: flex; align-items: center; justify-content: center; }
-body.tracking .camera-stage video { max-height: var(--camera-available, 40svh); }
+#dart-test-panel { margin: 0; width: min(100%, 600px); }
+#dart-test-status { margin: 4px 0; font-size: 14px; line-height: 1.35; }
+.captured-frames { display: flex; justify-content: center; gap: 12px; }
+.captured-frames figure { margin: 0; flex: 1; min-width: 0; }
+.captured-frames figcaption { font-size: 12px; color: #a5d9ec; margin: 4px; }
+.captured-frames canvas { width: auto; max-width: 100%; height: 80px; margin: 0; border-radius: 6px; }
+body.dart-testing { height: 100svh; box-sizing: border-box; overflow: hidden; padding: 8px; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+body.dart-testing > h1, body.dart-testing > #start, body.dart-testing > #detect,
+body.dart-testing > #status, body.dart-testing > #calibrate,
+body.dart-testing > #cancel-calibration, body.dart-testing #calibration-status { display: none; }
+body.dart-testing > button { margin: 0; padding: 8px 14px; flex-shrink: 0; }
+body.dart-testing #dart-test-panel { flex-shrink: 0; }
+body.dart-testing .camera-viewport { flex: 1; min-height: 0; width: 100%; display: flex; align-items: center; justify-content: center; }
+body.dart-testing .camera-stage { margin: 0 auto; }
+body.dart-testing .camera-stage video { max-height: var(--camera-available, 40svh); }
