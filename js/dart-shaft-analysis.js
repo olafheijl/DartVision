@@ -1,4 +1,4 @@
-import { calculateScore } from './scoring.js';
+import { calculateScore } from './board-scoring.js';
 
 // Geometric measurements only; no camera- or dart-specific pixel locations.
 // The axis is fitted to narrow cross-sections, not the flight's full silhouette.

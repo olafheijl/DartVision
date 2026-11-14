@@ -1,8 +1,8 @@
-import { calculateScore } from './scoring.js';
-import { frameChange } from './dart.js';
-import { getOpenCV } from './opencv.js';
-import { medianFrame, consistentMeasurements } from './dart-geometry.js';
-import { analyseDart, drawDartAlignment, compensateExposure } from './dart-opencv.js';
+import { calculateScore } from './board-scoring.js';
+import { frameChange } from './frame-motion.js';
+import { getOpenCV } from './opencv-runtime.js';
+import { medianFrame, consistentMeasurements } from './dart-shaft-analysis.js';
+import { analyseDart, drawDartAlignment, compensateExposure } from './dart-detection.js';
 
 export function nearWire(x,y) {
     const radius=Math.hypot(x,y);

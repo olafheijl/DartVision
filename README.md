@@ -2,6 +2,30 @@
 
 Een dartteller met camerabeeld en OpenCV. De bestaande pagina en detectiewerking blijven gelijk.
 
+## Code-overzicht
+
+De bestandsnamen geven aan welk onderdeel ze uitvoeren. Begin voor de **dartherkenning** bij `js/dart-detection.js` en `js/dart-shaft-analysis.js`; de bediening daarvan staat in `js/dart-test-controller.js`.
+
+| Bestand | Verantwoordelijkheid |
+| --- | --- |
+| [`index.html`](index.html) | Knoppen, camerabeeld, tekenlagen en scorepaneel. |
+| [`css/app.css`](css/app.css) | Vormgeving en de schermindeling voor telefoon en pc. |
+| [`js/app.js`](js/app.js) | Start de applicatie en verbindt camera, bordherkenning en darttest. |
+| [`js/camera-stream.js`](js/camera-stream.js) | Opent de camera en vraagt de gewenste beeldkwaliteit aan. |
+| [`js/opencv-runtime.js`](js/opencv-runtime.js) | Wacht op OpenCV en legt gedeelde cameraframes vast. |
+| [`js/board-detection.js`](js/board-detection.js) | Automatische bordherkenning via de dubbel- en triple-ring. |
+| [`js/board-calibration.js`](js/board-calibration.js) | Kalibratie, borduitlijning en omzetting van beeldpositie naar bordcoördinaten. |
+| [`js/board-scoring.js`](js/board-scoring.js) | Bepaalt vanuit bordcoördinaten het scorevak en de punten. |
+| [`js/dart-test-controller.js`](js/dart-test-controller.js) | Regelt de darttest: referentie vastleggen, drie beelden meten, resultaat tonen en meting bewaren. |
+| [`js/frame-motion.js`](js/frame-motion.js) | Meet beeldverandering om te wachten op een rustig beeld. |
+| [`js/dart-detection.js`](js/dart-detection.js) | OpenCV-dartdetectie: beelduitlijning, verschilbeeld, schacht- en puntmeting en diagnostische tekenlaag. |
+| [`js/dart-shaft-analysis.js`](js/dart-shaft-analysis.js) | Geometrische meetkern: fragmenten koppelen, smalle dwarsdoorsneden meten, schachtlijn bepalen en metingen vergelijken. |
+| [`scripts/start-dev-server.mjs`](scripts/start-dev-server.mjs) | Lokale HTTPS-server en ontwikkelcertificaten. |
+| [`scripts/replay-dart-measurements.py`](scripts/replay-dart-measurements.py) | Opgeslagen dartmetingen opnieuw door dezelfde detector halen. |
+| `tests/*.test.mjs` | Tests met dezelfde onderdeelnamen als de bronbestanden. |
+
+`start-local.cmd` blijft de Windows-startknop. `package.json` bevat de start- en buildcommando's. `dist/` is gegenereerde uitvoer; pas de bronbestanden aan en maak daarna een nieuwe build.
+
 ## Starten op je pc
 
 Installeer **Node.js 24 LTS** (inclusief npm). Open één terminal in deze map:
@@ -123,10 +147,10 @@ Deze verbeteringen zijn op drie lokaal aangeleverde exports nagekeken: twee reek
 
 ### Opgeslagen metingen opnieuw testen
 
-Voor ontwikkelaars is er `scripts/replay-measurements.py`. Dit draait dezelfde JavaScript-detector met echte OpenCV.js in headless Chromium, reconstrueert de opgeslagen kalibratie en rapporteert overeenstemming en score. Het vereist apart Python Playwright en Chromium; de website heeft die niet nodig. Het script gebruikt een lokaal OpenCV.js-bestand met ingebedde WASM en maakt geen netwerkverbindingen.
+Voor ontwikkelaars is er `scripts/replay-dart-measurements.py`. Dit draait dezelfde JavaScript-detector met echte OpenCV.js in headless Chromium, reconstrueert de opgeslagen kalibratie en rapporteert overeenstemming en score. Het vereist apart Python Playwright en Chromium; de website heeft die niet nodig. Het script gebruikt een lokaal OpenCV.js-bestand met ingebedde WASM en maakt geen netwerkverbindingen.
 
 ```sh
-python scripts/replay-measurements.py meting1.json meting2.json --opencv-js opencv.js --output resultaat.json
+python scripts/replay-dart-measurements.py meting1.json meting2.json --opencv-js opencv.js --output resultaat.json
 ```
 
 Met `--chromium` kun je een bestaand Chromium-programma aanwijzen. Met `--expected verwachtingen.json` kun je private regressie-eisen toevoegen: een JSON-object met per bestandsnaam `agreement`, `accepted` en optioneel `point_bounds` als `[links, boven, rechts, onder]` in beeldpixels. Scores zijn detectoruitvoer; bevestig de echte scorevakken apart. Bewaar camerabeelden en persoonlijke exports buiten de repository.

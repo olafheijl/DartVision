@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {startCamera} from '../js/camera.js';
+import {startCamera} from '../js/camera-stream.js';
 
 test('requests native HD detail as preferences without requiring an exact resolution',async()=>{
     const descriptor=Object.getOwnPropertyDescriptor(globalThis,'navigator');

@@ -1,8 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { nearWire } from '../js/pointer.js';
-import { invertMatrix, projectPoint } from '../js/calibration.js';
-import { calculateScore } from '../js/scoring.js';
+import { nearWire } from '../js/dart-test-controller.js';
+import { invertMatrix, projectPoint } from '../js/board-calibration.js';
+import { calculateScore } from '../js/board-scoring.js';
 test('flags ring and sector wires without rejecting sector centres',()=>{
     assert.equal(nearWire(0,-103),false);
     assert.equal(nearWire(0,-99),true);

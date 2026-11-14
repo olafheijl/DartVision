@@ -54,9 +54,9 @@ def main():
         page.goto('http://dartvision.test/', wait_until='domcontentloaded')
         page.wait_for_function('window.cv && typeof window.cv.Mat === "function"', timeout=30000)
         results = page.evaluate('''async records => {
-            const {analyseDart} = await import('/js/dart-opencv.js');
-            const {consistentMeasurements} = await import('/js/dart-geometry.js');
-            const {calculateScore} = await import('/js/scoring.js');
+            const {analyseDart} = await import('/js/dart-detection.js');
+            const {consistentMeasurements} = await import('/js/dart-shaft-analysis.js');
+            const {calculateScore} = await import('/js/board-scoring.js');
             const decode = async src => {
                 const im = new Image(); im.src = src; await im.decode();
                 if (im.width > 2048 || im.height > 2048) throw Error('Image too large');

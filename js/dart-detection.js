@@ -1,4 +1,4 @@
-import { extractFragments, fragmentGroups, measureShaft } from './dart-geometry.js';
+import { extractFragments, fragmentGroups, measureShaft } from './dart-shaft-analysis.js';
 
 // Estimate global exposure shifts from sparse samples. This avoids treating a
 // uniform brightness change as a dart; local shadows remain a separate issue.

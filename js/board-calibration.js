@@ -1,4 +1,4 @@
-import { getOpenCV, captureFrame } from './opencv.js';
+import { getOpenCV, captureFrame } from './opencv-runtime.js';
 
 // Cardinal positions on the scoring boundary, not the number ring or surround.
 const names = ['boven (midden dubbel 20)', 'rechts (midden dubbel 6)', 'onder (midden dubbel 3)', 'links (midden dubbel 11)'];

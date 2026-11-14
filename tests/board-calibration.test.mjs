@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { projectPoint } from '../js/calibration.js';
+import { projectPoint } from '../js/board-calibration.js';
 
 test('overlay projects board coordinates through perspective division', () => {
     assert.deepEqual(projectPoint([1,0,0,0,1,0,0,0,1],240,240),[240,240]);

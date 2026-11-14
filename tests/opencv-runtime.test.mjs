@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { getOpenCV, captureFrame } from '../js/opencv.js';
+import { getOpenCV, captureFrame } from '../js/opencv-runtime.js';
 
 test('OpenCV self-resolving thenable does not hang the loader', async () => {
     const module = { Mat() {}, then(callback) { callback(module); } };

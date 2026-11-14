@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { compensateExposure } from '../js/dart-opencv.js';
-import { frameChange } from '../js/dart.js';
+import { compensateExposure } from '../js/dart-detection.js';
+import { frameChange } from '../js/frame-motion.js';
 
 test('global exposure change is compensated while a local new dart remains',()=>{
     const width=100,height=100;
@@ -18,7 +18,7 @@ test('global exposure change is compensated while a local new dart remains',()=>
 });
 
 test('follows a weak dark point beyond a bright shaft and stops at the board', async()=>{
-    const { followDarkTip }=await import('../js/dart-opencv.js');
+    const { followDarkTip }=await import('../js/dart-detection.js');
     const width=160,height=100;
     const reference={width,height,data:new Uint8ClampedArray(width*height*4).fill(80)};
     const image={width,height,data:new Uint8ClampedArray(reference.data)};
@@ -29,7 +29,7 @@ test('follows a weak dark point beyond a bright shaft and stops at the board', a
 });
 
 test('does not extend a shaft into an unchanged or uniformly shadowed board',async()=>{
-    const { followDarkTip }=await import('../js/dart-opencv.js');
+    const { followDarkTip }=await import('../js/dart-detection.js');
     const width=160,height=100;
     const reference={width,height,data:new Uint8ClampedArray(width*height*4).fill(80)};
     for(const shade of [80,60]){
@@ -39,7 +39,7 @@ test('does not extend a shaft into an unchanged or uniformly shadowed board',asy
 });
 
 test('aligns small background translations before calculating differences',async()=>{
-    const {alignReference}=await import('../js/dart-opencv.js');
+    const {alignReference}=await import('../js/dart-detection.js');
     const width=100,height=100,data=new Uint8ClampedArray(width*height*4);
     for(let y=0;y<height;y++)for(let x=0;x<width;x++){
         const v=((Math.floor(x/7)+Math.floor(y/9))%2)*120+40;
@@ -55,7 +55,7 @@ test('aligns small background translations before calculating differences',async
 });
 
 test('needle refinement stops at a sharp point before a broad cast shadow',async()=>{
-    const {refineNeedleTip}=await import('../js/dart-opencv.js');
+    const {refineNeedleTip}=await import('../js/dart-detection.js');
     const width=180,height=100,reference={width,height,data:new Uint8ClampedArray(width*height*4)};
     for(let i=0;i<reference.data.length;i+=4)reference.data.set([180,180,180,255],i);
     const image={width,height,data:new Uint8ClampedArray(reference.data)};
@@ -67,7 +67,7 @@ test('needle refinement stops at a sharp point before a broad cast shadow',async
 });
 
 test('a soft uniform shadow does not supply needle evidence',async()=>{
-    const {refineNeedleTip}=await import('../js/dart-opencv.js');
+    const {refineNeedleTip}=await import('../js/dart-detection.js');
     const width=180,height=100;
     const reference={width,height,data:new Uint8ClampedArray(width*height*4).fill(180)};
     const image={width,height,data:new Uint8ClampedArray(width*height*4).fill(150)};
@@ -75,7 +75,7 @@ test('a soft uniform shadow does not supply needle evidence',async()=>{
 });
 
 test('registration is inverted for scoring while display coordinates stay unchanged',async()=>{
-    const {pointInReference}=await import('../js/dart-opencv.js');
+    const {pointInReference}=await import('../js/dart-detection.js');
     const point={x:.4,y:.6};
     const reference=pointInReference(point,{matrix:[1.01,.001,2,-.002,.99,-3]},640,480);
     const x=reference.x*640-.5,y=reference.y*480-.5;

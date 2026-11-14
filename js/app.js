@@ -1,8 +1,8 @@
 
-import { startCamera } from "./camera.js";
-import { detectBoard } from "./detection.js";
-import { initDartTracking } from "./pointer.js";
-import { initCalibration } from "./calibration.js";
+import { startCamera } from "./camera-stream.js";
+import { detectBoard } from "./board-detection.js";
+import { initDartTracking } from "./dart-test-controller.js";
+import { initCalibration } from "./board-calibration.js";
 
 const startButton = document.getElementById("start");
 const detectButton = document.getElementById("detect");

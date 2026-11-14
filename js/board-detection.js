@@ -1,4 +1,4 @@
-import { getOpenCV, captureFrame } from './opencv.js';
+import { getOpenCV, captureFrame } from './opencv-runtime.js';
 
 export function isRingColour(red, green, blue) {
     return (red > 45 && red > green * 1.3 && red > blue * 1.3) ||

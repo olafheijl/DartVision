@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { ellipseMatrix, selectBoardEllipse, project } from '../js/detection.js';
-import { invertMatrix } from '../js/calibration.js';
+import { ellipseMatrix, selectBoardEllipse, project } from '../js/board-detection.js';
+import { invertMatrix } from '../js/board-calibration.js';
 
 function board(ellipse,{triple=true,coloured=true,bull=null}={}) {
     const width=500,height=500,data=new Uint8ClampedArray(width*height*4);
