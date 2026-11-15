@@ -1,4 +1,5 @@
 import { getOpenCV } from './opencv-runtime.js';
+import { analyseImageDart, drawImageDart } from './dart-image-analysis.js';
 
 async function loadImageData(url) {
     const image = new Image();
@@ -18,9 +19,13 @@ async function loadImageData(url) {
 document.getElementById('run').addEventListener('click', async () => {
     const button = document.getElementById('run');
     const status = document.getElementById('status');
+    const comparisonSelect = document.getElementById('comparison');
     const mats = [];
+    const comparison = comparisonSelect.value;
 
     button.disabled = true;
+    comparisonSelect.disabled = true;
+    status.textContent = 'Beelden laden en rechte randen zoeken…';
 
     try {
         const { cv } = await getOpenCV();
@@ -57,8 +62,11 @@ document.getElementById('run').addEventListener('click', async () => {
         cv.imshow('bord-1', dartbord1Mat);
         cv.imshow('bord-2', dartbord2Mat);
 
+        const beforeMat = comparison === '1-2' ? dartbord1Mat : dartbord0Mat;
+        const afterMat = comparison === '0-1' ? dartbord1Mat : dartbord2Mat;
+
         // Hier kun je experimenteren met tussenstappen.
-        cv.absdiff(dartbord0Mat, dartbord1Mat, differenceMat);
+        cv.absdiff(beforeMat, afterMat, differenceMat);
 
         // Verwijder het transparantiekanaal voor de weergave.
         cv.cvtColor(differenceMat, resultMat, cv.COLOR_RGBA2GRAY);
@@ -112,7 +120,16 @@ document.getElementById('run').addEventListener('click', async () => {
         const contourResult = new cv.Mat();
         mats.push(contourResult);
 
-        cv.cvtColor(dartbord1Mat, contourResult, cv.COLOR_RGBA2RGB);
+        cv.cvtColor(afterMat, contourResult, cv.COLOR_RGBA2RGB);
+
+        // Clear downstream views on every run, including a run without objects.
+        const shaftResult = new cv.Mat();
+        mats.push(shaftResult);
+        cv.cvtColor(afterMat, shaftResult, cv.COLOR_RGBA2RGB);
+        const tipResult = shaftResult.clone();
+        mats.push(tipResult);
+        cv.imshow('shaft-result', shaftResult);
+        cv.imshow('tip-result', tipResult);
 
         const candidates = [];
 
@@ -154,6 +171,7 @@ document.getElementById('run').addEventListener('click', async () => {
 
         let flightPoint = null;
         let largestThickness = 0;
+        let flightCandidate = null;
 
         for (const candidate of candidates) {
             objectMask.setTo(new cv.Scalar(0));
@@ -164,13 +182,33 @@ document.getElementById('run').addEventListener('click', async () => {
             if (measurement.maxVal > largestThickness) {
                 largestThickness = measurement.maxVal;
                 flightPoint = { x: measurement.maxLoc.x, y: measurement.maxLoc.y };
+                flightCandidate = candidate;
             }
         }
 
         if (flightPoint) {
             cv.circle(contourResult, new cv.Point(flightPoint.x, flightPoint.y), 5, new cv.Scalar(255, 0, 0), -1);
             console.log('Mogelijke flight:', flightPoint);
-            status.textContent = `Mogelijke flight: rode stip op (${flightPoint.x}, ${flightPoint.y}). Controleer of deze op de flight ligt.`;
+            // Stap 5: rechte schachtranden en de geschatte schachtrichting.
+            const flightContour = contours.get(flightCandidate.contourIndex);
+            let analysis;
+            try {
+                analysis = analyseImageDart(cv, resultMat,
+                    { ...flightPoint, radius: largestThickness },
+                    flightContour.data32S, flightCandidate.rect);
+            } finally {
+                flightContour.delete();
+            }
+            drawImageDart(cv, shaftResult, flightPoint, analysis, false);
+            cv.imshow('shaft-result', shaftResult);
+
+            // Stap 6: een ondersteund uiteinde langs de schachtlijn zoeken.
+            shaftResult.copyTo(tipResult);
+            drawImageDart(cv, tipResult, flightPoint, analysis, true);
+            cv.imshow('tip-result', tipResult);
+            console.table(analysis.lines);
+            console.log('Geschatte punt:', analysis.tip || null);
+            status.textContent = `${analysis.lines.length} mogelijke schachtrand(en). ${analysis.reason}`;
         } else {
             status.textContent = 'Geen geschikt object gevonden om een mogelijke flight te markeren.';
         }
@@ -185,5 +223,6 @@ document.getElementById('run').addEventListener('click', async () => {
         }
 
         button.disabled = false;
+        comparisonSelect.disabled = false;
     }
 });

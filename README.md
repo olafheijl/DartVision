@@ -16,6 +16,8 @@ De bestandsnamen geven aan welk onderdeel ze uitvoeren. De bordherkenning staat 
 | [`js/board-detection.js`](js/board-detection.js) | Automatische bordherkenning via de dubbel- en triple-ring. |
 | [`js/board-calibration.js`](js/board-calibration.js) | Kalibratie, borduitlijning en omzetting van beeldpositie naar bordcoördinaten. |
 | [`js/dart-test-controller.js`](js/dart-test-controller.js) | Regelt de drie testknoppen en bewaart de beelden vóór en na een worp. |
+| [`image-test.html`](image-test.html) en [`js/image-test.js`](js/image-test.js) | Afzonderlijke proef met de drie JPEG-foto’s uit `public/assets/` en zichtbare tussenstappen. |
+| [`js/dart-image-analysis.js`](js/dart-image-analysis.js) | Zoekt rechte schachtranden, schat een richting en zoekt een mogelijk uiteinde voor de afbeeldingsproef. |
 | [`scripts/start-dev-server.mjs`](scripts/start-dev-server.mjs) | Lokale HTTPS-server en ontwikkelcertificaten. |
 | `tests/*.test.mjs` | Tests met dezelfde onderdeelnamen als de bronbestanden. |
 
@@ -103,6 +105,12 @@ Alle bediening en beeldopname staat in `js/dart-test-controller.js`. De teruggeg
 
 Controles: `node --test tests/*.test.mjs` en `npm run build`.
 
-## Afbeeldingsproef: stap 4
+## Afbeeldingsproef: flight, rechte randen en mogelijk uiteinde
 
-Open `image-test.html` via de ontwikkelserver en kies **Test uitvoeren**. Na verschilbeeld, masker en contouren zoekt stap 4 het dikste gedeelte met `cv.distanceTransform()`. In **Gevonden objecten** verschijnt daar een rode stip als mogelijke flight. Bij meerdere objecten kiest deze proef het dikste gedeelte van alle kandidaten; een schaduw kan ook winnen. Dit is nog geen exacte flightmiddelpunt- of dartpuntbepaling. De bestaande tussenstappen blijven zichtbaar.
+Open `https://localhost:5173/image-test.html` en kies **Test uitvoeren**. De proef gebruikt `public/assets/dartbord0.jpeg`, `dartbord1.jpeg` en `dartbord2.jpeg`. Kies leeg bord → eerste dart of eerste dart → tweede dart om één nieuwe dart te bekijken. Bij leeg bord → beide darts wordt slechts één flight gemarkeerd.
+
+Na verschilbeeld, masker en contouren zoekt stap 4 het dikste gedeelte met `cv.distanceTransform()`. In **Gevonden objecten** verschijnt daar een rode stip als mogelijke flight. Bij meerdere objecten kiest deze proef het dikste gedeelte van alle kandidaten; een schaduw kan ook winnen.
+
+Stap 5 gebruikt `cv.Canny()` en `cv.HoughLinesP()` op het grijze verschilbeeld in de buurt van de flight. De blauwe lijnen zijn mogelijke rechte schachtranden. `cv.fitLine()` schat daaruit de groene richting. Een los schachtfragment kan ook worden meegenomen als het dichtbij ligt en naar de flight wijst. Stap 6 zoekt langs die richting naar een veranderde reeks pixels die daadwerkelijk eindigt; het gele kruisje markeert dat mogelijke uiteinde. Ontbreekt die onderbouwing, dan verschijnt geen punt.
+
+Alle eerdere tussenstappen blijven zichtbaar. De richting en het uiteinde zijn schattingen om visueel te controleren, geen bewezen inslagpunt of score. Deze proef wijzigt de live camera- en bordherkenning niet. `npm run build` neemt ook `image-test.html` op in `dist/`.

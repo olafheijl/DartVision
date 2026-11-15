@@ -31,8 +31,15 @@
     </script>
 </head>
 <body>
+    <label for="comparison">Vergelijking:</label>
+    <select id="comparison">
+        <option value="0-1">Leeg bord → eerste dart</option>
+        <option value="1-2">Eerste dart → tweede dart</option>
+        <option value="0-2">Leeg bord → beide darts (één flight markeren)</option>
+    </select>
     <button id="run">Test uitvoeren</button>
-    <p id="status"></p>
+    <p id="status" role="status"></p>
+    <p>Rood: mogelijke flight · blauw: rechte randen · groen: geschatte schachtrichting · geel: geschat uiteinde. Controleer de uitlijning; er wordt geen score berekend.</p>
 
     <div class="images">
         <figure>
@@ -60,6 +67,14 @@
         <figure>
             <figcaption>Gevonden objecten · rood: mogelijke flight</figcaption>
             <canvas id="contour-result"></canvas>
+        </figure>
+        <figure>
+            <figcaption>Rechte schachtranden en geschatte richting</figcaption>
+            <canvas id="shaft-result"></canvas>
+        </figure>
+        <figure>
+            <figcaption>Geschatte punt langs de schacht</figcaption>
+            <canvas id="tip-result"></canvas>
         </figure>
     </div>
 
