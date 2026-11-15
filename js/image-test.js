@@ -130,6 +130,9 @@ document.getElementById('run').addEventListener('click', async () => {
         mats.push(tipResult);
         cv.imshow('shaft-result', shaftResult);
         cv.imshow('tip-result', tipResult);
+        const selectedMask = cv.Mat.zeros(resultMat.rows, resultMat.cols, cv.CV_8UC1);
+        mats.push(selectedMask);
+        cv.imshow('dart-mask', selectedMask);
 
         const candidates = [];
 
@@ -190,19 +193,27 @@ document.getElementById('run').addEventListener('click', async () => {
             cv.circle(contourResult, new cv.Point(flightPoint.x, flightPoint.y), 5, new cv.Scalar(255, 0, 0), -1);
             console.log('Mogelijke flight:', flightPoint);
             // Stap 5: rechte schachtranden en de geschatte schachtrichting.
+            objectMask.setTo(new cv.Scalar(0));
+            cv.drawContours(objectMask, contours, flightCandidate.contourIndex, new cv.Scalar(255), -1);
             const flightContour = contours.get(flightCandidate.contourIndex);
             let analysis;
             try {
                 analysis = analyseImageDart(cv, resultMat,
                     { ...flightPoint, radius: largestThickness },
-                    flightContour.data32S, flightCandidate.rect);
+                    flightContour.data32S, flightCandidate.rect, maskMat, objectMask);
             } finally {
                 flightContour.delete();
             }
             drawImageDart(cv, shaftResult, flightPoint, analysis, false);
             cv.imshow('shaft-result', shaftResult);
 
-            // Stap 6: een ondersteund uiteinde langs de schachtlijn zoeken.
+            // Stap 6: de verste echte maskerpixel in de schachtrichting.
+            selectedMask.data.set(analysis.dartMask);
+            const maskResult = new cv.Mat();
+            mats.push(maskResult);
+            cv.cvtColor(selectedMask, maskResult, cv.COLOR_GRAY2RGB);
+            drawImageDart(cv, maskResult, flightPoint, { lines: [], tip: analysis.tip }, true);
+            cv.imshow('dart-mask', maskResult);
             shaftResult.copyTo(tipResult);
             drawImageDart(cv, tipResult, flightPoint, analysis, true);
             cv.imshow('tip-result', tipResult);

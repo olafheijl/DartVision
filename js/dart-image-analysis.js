@@ -34,53 +34,73 @@ export function chooseShaftLines(lines, flight, contourEnd, scale = 1) {
     });
 }
 
-export function findTipAlongAxis(data, width, height, flight, axis, maxReach, scale = 1, supportRange = null) {
-    const { x, y, ux, uy } = axis;
-    const originT = (flight.x - x) * ux + (flight.y - y) * uy;
-    const step = Math.max(1, scale), corridor = Math.max(2, 2 * scale);
-    const runs = [];
-    let run = [], gap = 0;
-    for (let t = Math.max(5 * scale, flight.radius * 1.4); t <= maxReach; t += step) {
-        const px = x + (originT + t) * ux, py = y + (originT + t) * uy;
-        let best = null;
-        for (let offset = -corridor; offset <= corridor; offset += 1) {
-            const xx = Math.round(px - uy * offset), yy = Math.round(py + ux * offset);
-            if (xx < 1 || yy < 1 || xx >= width - 1 || yy >= height - 1) continue;
-            const value = data[yy * width + xx];
-            // Local evidence is required; an infinitely extended shaft is not a tip.
-            if (value < 8) continue;
-            if (!best || value > best.value) best = { x: xx, y: yy, t, value };
-        }
-        if (best) { run.push(best); gap = 0; }
-        else if (++gap >= 3) { if (run.length) runs.push(run); run = []; gap = 0; }
+export function findTipInMask(data, objectMask, width, height, flight, axis, scale = 1, supportRange = null, corridor = 2 * scale) {
+    // Keep only real white pixels. A filled contour or a morphological close may
+    // bridge a gap, but those invented pixels must never become the endpoint.
+    const dartMask = new Uint8Array(data.length);
+    const pixels = [];
+    for (let i = 0; i < data.length; i++) {
+        if (!data[i]) continue;
+        if (objectMask[i]) dartMask[i] = 255;
+        if (!axis) continue;
+        const x = i % width, y = Math.floor(i / width);
+        const t = (x - flight.x) * axis.ux + (y - flight.y) * axis.uy;
+        const offset = Math.abs((x - axis.x) * axis.uy - (y - axis.y) * axis.ux);
+        if (t > Math.max(5 * scale, flight.radius * 1.4) && offset <= Math.max(2, corridor)) pixels.push({ x, y, t, offset, index: i });
     }
-    if (run.length) runs.push(run);
-    const supported = runs.filter(r => r.length >= 4);
-    if (!supported.length) return null;
-    // Start near the flight and join only small, collinear interruptions.
-    let chain = null;
-    for (const candidate of supported) {
-        if (!chain) {
-            if (!candidate.some(p => p.value >= 20)) continue;
-            if (supportRange) {
-                if (candidate.at(-1).t < supportRange[0] - 3 * scale || candidate[0].t > supportRange[1] + 3 * scale) continue;
-            } else if (candidate[0].t > Math.max(25 * scale, flight.radius * 3)) continue;
-            chain = candidate;
-        } else {
-            if (candidate[0].t - chain.at(-1).t > Math.max(12 * scale, flight.radius * .5)) break;
-            chain = chain.concat(candidate);
+    // Keep spatially separate shapes separate, even when their projections
+    // overlap. Otherwise a parallel dart or noise stripe could join this dart.
+    const remaining = new Map(pixels.map(pixel => [pixel.index, pixel]));
+    const components = [];
+    for (const pixel of pixels) {
+        if (!remaining.delete(pixel.index)) continue;
+        const component = { pixels: [pixel], startT: pixel.t, endT: pixel.t, seeded: false };
+        for (let head = 0; head < component.pixels.length; head++) {
+            const p = component.pixels[head];
+            component.startT = Math.min(component.startT, p.t);
+            component.endT = Math.max(component.endT, p.t);
+            component.seeded ||= !!dartMask[p.index];
+            for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+                const xx = p.x + dx, yy = p.y + dy;
+                if (xx < 0 || yy < 0 || xx >= width || yy >= height) continue;
+                const index = yy * width + xx, neighbour = remaining.get(index);
+                if (neighbour) { remaining.delete(index); component.pixels.push(neighbour); }
+            }
         }
+        components.push(component);
     }
-    if (!chain) return null;
-    // Evidence must actually stop; the search boundary is never a dart tip.
-    if (chain.at(-1).t >= maxReach - 2 * step) return null;
-    const terminal = chain.at(-1);
-    if (terminal.x <= 2 || terminal.y <= 2 || terminal.x >= width - 3 || terminal.y >= height - 3) return null;
-    const end = chain.slice(-2);
-    return { x: end.reduce((s, p) => s + p.x, 0) / end.length, y: end.reduce((s, p) => s + p.y, 0) / end.length };
+    // Anchor the search to the chosen flight object, not to arbitrary white
+    // pixels elsewhere in the photo. A short detached tip may join this chain.
+    let anchors = components.filter(c => c.seeded);
+    if (!anchors.length && supportRange) {
+        const nearbyShaft = components.find(c => c.startT <= Math.max(35 * scale, flight.radius * 4)
+            && c.endT >= supportRange[0] && c.startT <= supportRange[1]);
+        if (nearbyShaft) anchors = [nearbyShaft];
+    }
+    if (!anchors.length) return { dartMask, tip: null };
+    const chain = anchors.flatMap(c => c.pixels);
+    let terminalT = Math.max(...anchors.map(c => c.endT));
+    const maxGap = 6 * scale;
+    for (const fragment of components.filter(c => !anchors.includes(c)).sort((a, b) => a.endT - b.endT)) {
+        if (fragment.endT <= terminalT || fragment.startT > terminalT + maxGap) continue;
+        // Isolated specks cannot extend the dart. Thin, elongated fragments can.
+        if (fragment.endT - fragment.startT < 3 * scale) continue;
+        const tail = chain.filter(p => p.t >= terminalT - maxGap);
+        const nearby = fragment.pixels.filter(p => p.t >= terminalT - maxGap && p.t <= terminalT + maxGap);
+        if (!nearby.some(p => tail.some(q => (p.x - q.x) ** 2 + (p.y - q.y) ** 2 <= maxGap ** 2))) continue;
+        chain.push(...fragment.pixels);
+        terminalT = fragment.endT;
+    }
+    for (const pixel of chain) dartMask[pixel.index] = 255;
+    if (supportRange && !chain.some(p => p.t >= supportRange[0] - 3 * scale && p.t <= supportRange[1] + 3 * scale)) return { dartMask, tip: null };
+    // Return an actual mask pixel, never an average or a point snapped to the
+    // fitted line: either could lie in a black gap in the mask.
+    const terminal = chain.filter(p => Math.abs(p.t - terminalT) < 1e-6).sort((a, b) => a.offset - b.offset)[0];
+    const clipped = terminal.x <= 2 || terminal.y <= 2 || terminal.x >= width - 3 || terminal.y >= height - 3;
+    return { dartMask, tip: clipped ? null : { x: terminal.x, y: terminal.y } };
 }
 
-export function analyseImageDart(cv, difference, flight, contourPoints, bounds) {
+export function analyseImageDart(cv, difference, flight, contourPoints, bounds, mask, objectMask) {
     const width = difference.cols, height = difference.rows, scale = Math.max(width, height) / 640;
     let contourEnd = flight;
     for (let i = 0; i < contourPoints.length; i += 2) {
@@ -105,7 +125,7 @@ export function analyseImageDart(cv, difference, flight, contourPoints, bounds) 
             rawLines.push({ x1, y1, x2, y2 });
         }
         const selected = chooseShaftLines(rawLines, flight, contourEnd, scale);
-        if (!selected.length) return { lines: [], reason: 'Flight gemarkeerd, maar geen duidelijke schachtranden gevonden.' };
+        if (!selected.length) return { ...findTipInMask(mask.data, objectMask.data, width, height, flight, null), lines: [], reason: 'Flight gemarkeerd, maar geen duidelijke schachtranden gevonden.' };
         if (detachedFlight) {
             const lead = selected[0];
             contourEnd = { x: (lead.x1 + lead.x2) / 2, y: (lead.y1 + lead.y2) / 2 };
@@ -120,8 +140,10 @@ export function analyseImageDart(cv, difference, flight, contourPoints, bounds) 
         const support = selected.flatMap(l => [[l.x1, l.y1], [l.x2, l.y2]])
             .map(([px, py]) => (px - flight.x) * ux + (py - flight.y) * uy);
         const supportRange = [Math.max(flight.radius * 1.4, Math.min(...support)), Math.max(...support)];
-        const tip = findTipAlongAxis(difference.data, width, height, flight, axis, reach * 1.35, scale, supportRange);
-        return { lines: selected, axis, tip, reach, reason: tip ? 'Geschatte punt gevonden. Controleer het gele kruisje.' : 'Schachtlijn gevonden, maar geen ondersteund uiteinde.' };
+        const corridor = Math.max(2 * scale, ...selected.flatMap(l => [[l.x1, l.y1], [l.x2, l.y2]])
+            .map(([px, py]) => Math.abs((px - x) * uy - (py - y) * ux) + 2 * scale));
+        const endpoint = findTipInMask(mask.data, objectMask.data, width, height, flight, axis, scale, supportRange, corridor);
+        return { ...endpoint, lines: selected, axis, reach, reason: endpoint.tip ? 'Uiterste maskerpixel gevonden. Controleer het gele kruisje.' : 'Schachtlijn gevonden, maar geen bijbehorend uiteinde in het masker.' };
     } finally { for (const mat of mats.reverse()) mat.delete(); }
 }
 

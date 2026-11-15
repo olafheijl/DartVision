@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { chooseShaftLines, findTipAlongAxis } from '../js/dart-image-analysis.js';
+import { chooseShaftLines, findTipInMask } from '../js/dart-image-analysis.js';
 
 const flight = { x: 30, y: 60, radius: 5 };
 test('shaft lines must point away from the flight towards the dart body', () => {
@@ -26,26 +26,72 @@ test('a detached flight can use nearby shaft fragments without accepting a dista
     assert.equal(selected.length, 2);
     assert.ok(selected.every(l => l.x1 === 35));
 });
-test('tip search preserves a short weak continuation but rejects distant unrelated pixels', () => {
+test('mask endpoint includes a nearby thin fragment but excludes distant noise', () => {
     const width = 180, height = 120, data = new Uint8Array(width * height);
-    for (let x = 45; x <= 90; x++) data[60 * width + x] = 100;
-    for (let x = 94; x <= 105; x++) data[60 * width + x] = 12;
-    for (let x = 140; x <= 160; x++) data[60 * width + x] = 100;
-    const point = findTipAlongAxis(data, width, height, flight, { x: 30, y: 60, ux: 1, uy: 0 }, 140, 1, [15, 60]);
-    assert.ok(point);
-    assert.ok(point.x >= 103 && point.x <= 106);
-    assert.equal(point.y, 60);
+    const seed = new Uint8Array(data.length);
+    for (let x = 45; x <= 90; x++) data[60 * width + x] = seed[60 * width + x] = 255;
+    for (let x = 94; x <= 105; x++) data[60 * width + x] = 255;
+    for (let x = 140; x <= 160; x++) data[60 * width + x] = 255;
+    const result = findTipInMask(data, seed, width, height, flight, { x: 30, y: 60, ux: 1, uy: 0 }, 1, [15, 60]);
+    assert.deepEqual(result.tip, { x: 105, y: 60 });
+    assert.equal(result.dartMask[60 * width + 105], 255);
+    assert.equal(result.dartMask[60 * width + 140], 0);
 });
-test('a distant run without shaft support and an empty image give no tip', () => {
+test('an empty mask or distant pixels without the selected dart give no tip', () => {
     const width = 180, height = 120, data = new Uint8Array(width * height);
+    const seed = new Uint8Array(data.length);
     const axis = { x: 30, y: 60, ux: 1, uy: 0 };
-    assert.equal(findTipAlongAxis(data, width, height, flight, axis, 140, 1, [15, 60]), null);
-    for (let x = 140; x <= 160; x++) data[60 * width + x] = 100;
-    assert.equal(findTipAlongAxis(data, width, height, flight, axis, 140, 1, [15, 60]), null);
+    assert.equal(findTipInMask(data, seed, width, height, flight, axis, 1, [15, 60]).tip, null);
+    for (let x = 140; x <= 160; x++) data[60 * width + x] = 255;
+    assert.equal(findTipInMask(data, seed, width, height, flight, axis, 1, [15, 60]).tip, null);
 });
 
-test('a line continuing through the search boundary is not a tip', () => {
+test('the endpoint is a real pixel even when averaging or snapping would leave the mask', () => {
     const width = 180, height = 120, data = new Uint8Array(width * height);
-    for (let x = 45; x <= 150; x++) data[60 * width + x] = 100;
-    assert.equal(findTipAlongAxis(data, width, height, flight, { x: 30, y: 60, ux: 1, uy: 0 }, 80, 1, [15, 60]), null);
+    for (let x = 45; x < 90; x++) data[60 * width + x] = 255;
+    data[62 * width + 90] = 255;
+    const result = findTipInMask(data, data, width, height, flight, { x: 30, y: 60, ux: 1, uy: 0 });
+    assert.deepEqual(result.tip, { x: 90, y: 62 });
+    assert.equal(data[result.tip.y * width + result.tip.x], 255);
+    assert.equal(data[60 * width + 90], 0);
+});
+
+test('filled contour pixels and off-axis or backward objects cannot extend the tip', () => {
+    const width = 180, height = 120, data = new Uint8Array(width * height);
+    const seed = new Uint8Array(data.length).fill(255);
+    for (let x = 45; x <= 90; x++) data[60 * width + x] = 255;
+    for (let x = 100; x <= 150; x++) data[40 * width + x] = 255;
+    for (let x = 0; x <= 20; x++) data[60 * width + x] = 255;
+    const result = findTipInMask(data, seed, width, height, flight, { x: 30, y: 60, ux: 1, uy: 0 });
+    assert.deepEqual(result.tip, { x: 90, y: 60 });
+    assert.equal(result.dartMask[60 * width + 91], 0);
+});
+
+test('a detached isolated speck cannot extend the mask endpoint', () => {
+    const width = 180, height = 120, data = new Uint8Array(width * height);
+    const seed = new Uint8Array(data.length);
+    for (let x = 45; x <= 90; x++) data[60 * width + x] = seed[60 * width + x] = 255;
+    data[60 * width + 95] = 255;
+    const result = findTipInMask(data, seed, width, height, flight, { x: 30, y: 60, ux: 1, uy: 0 });
+    assert.deepEqual(result.tip, { x: 90, y: 60 });
+    assert.equal(result.dartMask[60 * width + 95], 0);
+});
+
+test('a separate parallel object cannot join solely through overlapping projections', () => {
+    const width = 180, height = 120, data = new Uint8Array(width * height);
+    const seed = new Uint8Array(data.length);
+    for (let x = 45; x <= 90; x++) data[55 * width + x] = seed[55 * width + x] = 255;
+    for (let x = 85; x <= 115; x++) data[65 * width + x] = 255;
+    const result = findTipInMask(data, seed, width, height, flight, { x: 30, y: 60, ux: 1, uy: 0 }, 1, [15, 60], 6);
+    assert.deepEqual(result.tip, { x: 90, y: 55 });
+    assert.equal(result.dartMask[65 * width + 115], 0);
+});
+
+test('the shaft can point left and a clipped dart has no endpoint', () => {
+    const width = 180, height = 120, data = new Uint8Array(width * height);
+    const leftFlight = { x: 150, y: 60, radius: 5 }, axis = { x: 150, y: 60, ux: -1, uy: 0 };
+    for (let x = 45; x <= 130; x++) data[60 * width + x] = 255;
+    assert.deepEqual(findTipInMask(data, data, width, height, leftFlight, axis).tip, { x: 45, y: 60 });
+    for (let x = 0; x <= 45; x++) data[60 * width + x] = 255;
+    assert.equal(findTipInMask(data, data, width, height, leftFlight, axis).tip, null);
 });
