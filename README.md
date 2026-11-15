@@ -102,3 +102,7 @@ De oude dartdetectie, bewegingsdetectie, schacht-/puntanalyse, scoreberekening e
 Alle bediening en beeldopname staat in `js/dart-test-controller.js`. De teruggegeven `getFrames()` geeft `{ reference, afterThrow }` als `ImageData` voor een volgende proef. OpenCV blijft beschikbaar voor de bestaande bordherkenning; de nieuwe testmodus gebruikt alleen de camerabeelden.
 
 Controles: `node --test tests/*.test.mjs` en `npm run build`.
+
+## Afbeeldingsproef: stap 4
+
+Open `image-test.html` via de ontwikkelserver en kies **Test uitvoeren**. Na verschilbeeld, masker en contouren zoekt stap 4 het dikste gedeelte met `cv.distanceTransform()`. In **Gevonden objecten** verschijnt daar een rode stip als mogelijke flight. Bij meerdere objecten kiest deze proef het dikste gedeelte van alle kandidaten; een schaduw kan ook winnen. Dit is nog geen exacte flightmiddelpunt- of dartpuntbepaling. De bestaande tussenstappen blijven zichtbaar.

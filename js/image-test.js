@@ -35,7 +35,7 @@ document.getElementById('run').addEventListener('click', async () => {
             dartbord0.width !== dartbord2.width ||
             dartbord0.height !== dartbord2.height
         ) {
-            throw new Error('De foto’s moeten dezelfde afmetingen hebben.');
+            throw new Error('De fotoâ€™s moeten dezelfde afmetingen hebben.');
         }
 
         const dartbord0Mat = cv.matFromImageData(dartbord0);
@@ -145,9 +145,38 @@ document.getElementById('run').addEventListener('click', async () => {
             }
         }
 
+        // Stap 4: dikste deel van de vorm als mogelijke flight markeren.
+        const objectMask = cv.Mat.zeros(flightMaskMat.rows, flightMaskMat.cols, cv.CV_8UC1);
+        mats.push(objectMask);
+
+        const distanceMat = new cv.Mat();
+        mats.push(distanceMat);
+
+        let flightPoint = null;
+        let largestThickness = 0;
+
+        for (const candidate of candidates) {
+            objectMask.setTo(new cv.Scalar(0));
+            cv.drawContours(objectMask, contours, candidate.contourIndex, new cv.Scalar(255), -1);
+            cv.distanceTransform(objectMask, distanceMat, cv.DIST_L2, 5);
+
+            const measurement = cv.minMaxLoc(distanceMat);
+            if (measurement.maxVal > largestThickness) {
+                largestThickness = measurement.maxVal;
+                flightPoint = { x: measurement.maxLoc.x, y: measurement.maxLoc.y };
+            }
+        }
+
+        if (flightPoint) {
+            cv.circle(contourResult, new cv.Point(flightPoint.x, flightPoint.y), 5, new cv.Scalar(255, 0, 0), -1);
+            console.log('Mogelijke flight:', flightPoint);
+            status.textContent = `Mogelijke flight: rode stip op (${flightPoint.x}, ${flightPoint.y}). Controleer of deze op de flight ligt.`;
+        } else {
+            status.textContent = 'Geen geschikt object gevonden om een mogelijke flight te markeren.';
+        }
+
         cv.imshow('contour-result', contourResult);
         console.table(candidates);
-        status.textContent = 'Verschilbeeld gereed.';
     } catch (error) {
         status.textContent = error.message;
     } finally {
