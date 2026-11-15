@@ -24,6 +24,8 @@
     <!-- Camera controls -->
     <button id="start">Start Camera</button>
     <button id="detect" disabled>Detect Board</button>
+    <figure><figcaption>Result</figcaption><canvas id="test-canvas"></canvas></figure>
+
 
     <p id="status">Camera not connected</p>
 
@@ -39,7 +41,6 @@
         <div class="captured-frames">
             <figure><figcaption>Leeg bord</figcaption><canvas id="empty-board-frame" hidden></canvas></figure>
             <figure><figcaption>Na de worp</figcaption><canvas id="thrown-dart-frame" hidden></canvas></figure>
-            <figure><figcaption>Verschil tussen bord</figcaption><canvas id="difference-canvas" hidden></canvas></figure>
         </div>
     </section>
     <div class="camera-viewport">

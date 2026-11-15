@@ -11,6 +11,7 @@ export function initDartTest(video, calibration) {
     const referenceCanvas = document.getElementById('empty-board-frame');
     const throwCanvas = document.getElementById('thrown-dart-frame');
     const testCanvas = document.getElementById('difference-canvas');
+    const resultCanvas = document.getElementById('test-canvas');
     const viewport = document.querySelector('.camera-viewport');
     let active = false, reference = null, afterThrow = null;
 
@@ -41,6 +42,20 @@ export function initDartTest(video, calibration) {
         const image = ctx.getImageData(0, 0, canvas.width, canvas.height);
         canvas.hidden = false;
         return image;
+    }
+    async function loadImageData(url) {
+        const image = new Image();
+        image.src = url;
+        await image.decode();
+
+        const canvas = document.createElement('canvas');
+        canvas.width = image.naturalWidth;
+        canvas.height = image.naturalHeight;
+
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(image, 0, 0);
+
+        return ctx.getImageData(0, 0, canvas.width, canvas.height);
     }
     startButton.addEventListener('click', () => {
         if (active) return stop();
@@ -95,14 +110,23 @@ export function initDartTest(video, calibration) {
 
             const differenceMat = new cv.Mat();
             mats.push(differenceMat);
-
+            
             testCanvas.hidden = false;
+            dartbord0 = await loadImageData('/assets/dartbord0.jpeg');
+            dartbord1 = await loadImageData('/assets/dartbord1.jpeg');
+            dartbord2 = await loadImageData('/assets/dartbord2.jpeg');
+            const dartbord0Mat = cv.matFromImageData(dartbord0);
+            const dartbord1Mat = cv.matFromImageData(dartbord1);
+            const dartbord2Mat = cv.matFromImageData(dartbord2);
+            mats.push(dartbord0Mat);
+            mats.push(dartbord1Mat);
+            mats.push(dartbord2Mat);
+            
+
             cv.absdiff(referenceMat, afterThrowMat, differenceMat);
             // Alpha also becomes zero in absdiff; display RGB to keep the result visible.
-            cv.cvtColor(differenceMat, differenceMat, cv.COLOR_RGBA2RGB);
-            cv.imshow('difference-canvas', differenceMat);
-            
-            status.textContent = 'Verschilbeeld gereed: lichte pixels geven veranderingen aan.';
+            cv.cvtColor(testCanvas, differenceMat, cv.COLOR_RGBA2GRAY);
+            cv.GaussianBlur(testCanvas, testCanvas, Size(9,9), 2, 2);
 
         } catch (error) { 
             status.textContent = error.message; 
