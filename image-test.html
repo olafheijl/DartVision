@@ -31,15 +31,8 @@
     </script>
 </head>
 <body>
-    <label for="comparison">Vergelijking:</label>
-    <select id="comparison">
-        <option value="0-1">Leeg bord → eerste dart</option>
-        <option value="1-2">Eerste dart → tweede dart</option>
-        <option value="0-2">Leeg bord → beide darts (één flight markeren)</option>
-    </select>
     <button id="run">Test uitvoeren</button>
-    <p id="status" role="status"></p>
-    <p>Rood: mogelijke flight · blauw: rechte randen · groen: geschatte schachtrichting · geel: verste pixel binnen het geselecteerde dartmasker. Controleer de uitlijning; er wordt geen score berekend.</p>
+    <p id="status"></p>
 
     <div class="images">
         <figure>
@@ -67,38 +60,6 @@
         <figure>
             <figcaption>Gevonden objecten · rood: mogelijke flight</figcaption>
             <canvas id="contour-result"></canvas>
-        </figure>
-        <figure>
-            <figcaption>Rechte schachtranden en geschatte richting</figcaption>
-            <canvas id="shaft-result"></canvas>
-        </figure>
-        <figure>
-            <figcaption>Geselecteerd dartmasker · geel: uiterste maskerpixel</figcaption>
-            <canvas id="dart-mask"></canvas>
-        </figure>
-        <figure>
-            <figcaption>Geschatte punt langs de schacht</figcaption>
-            <canvas id="tip-result"></canvas>
-        </figure>
-        <figure id="D3">
-            <figcaption>D3</figcaption>
-            <canvas></canvas>
-        </figure>
-        <figure id="D11">
-            <figcaption>D11</figcaption>
-            <canvas></canvas>
-        </figure>
-        <figure id="S4">
-            <figcaption>S4</figcaption>
-            <canvas></canvas>
-        </figure>
-        <figure id="T2">
-            <figcaption>T2</figcaption>
-            <canvas></canvas>
-        </figure>
-        <figure id="N0">
-            <figcaption>N0</figcaption>
-            <canvas></canvas>
         </figure>
     </div>
 
