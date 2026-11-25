@@ -11,14 +11,6 @@
             padding: 20px;
         }
 
-        .images {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 20px;
-        }
-
-        figure { margin: 0; }
-
         canvas {
             max-width: 350px;
             max-height: 500px;
@@ -32,36 +24,11 @@
 </head>
 <body>
     <button id="run">Test uitvoeren</button>
-    <p id="status"></p>
-
-    <div class="images">
-        <figure>
-            <figcaption>Leeg bord</figcaption>
-            <canvas id="empty-bord"></canvas>
-        </figure>
-
-        <figure>
-            <figcaption>Met 1 dart</figcaption>
-            <canvas id="bord-1"></canvas>
-        </figure>
-        
-        <figure>
-            <figcaption>Met 2 darts</figcaption>
-            <canvas id="bord-2"></canvas>
-        </figure>
-        <figure>
-            <figcaption>Resultaat</figcaption>
-            <canvas id="result"></canvas>
-        </figure>
-        <figure>
-            <figcaption>Mogelijke flight</figcaption>
-            <canvas id="flight-mask"></canvas>
-        </figure>
-        <figure>
-            <figcaption>Gevonden objecten · rood: mogelijke flight</figcaption>
-            <canvas id="contour-result"></canvas>
-        </figure>
-    </div>
+    <p id="status" role="status"></p>
+    <figure>
+        <figcaption>Gevonden objecten · rood: mogelijke flight</figcaption>
+        <canvas id="contour-result"></canvas>
+    </figure>
 
     <script type="module" src="/js/image-test.js"></script>
 </body>

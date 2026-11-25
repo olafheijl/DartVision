@@ -1,5 +1,9 @@
 import { getOpenCV } from './opencv-runtime.js';
 
+// Foto's uit public/assets: eerst het lege bord, daarna het bord met dart.
+const EMPTY_BOARD_PHOTO = '/assets/S4L.jpeg';
+const BOARD_WITH_DART_PHOTO = '/assets/S4.jpeg';
+
 async function loadImageData(url) {
     const image = new Image();
     image.src = url;
@@ -25,27 +29,18 @@ document.getElementById('run').addEventListener('click', async () => {
     try {
         const { cv } = await getOpenCV();
 
-        const dartbord0 = await loadImageData('/assets/dartbord0.jpeg');
-        const dartbord1 = await loadImageData('/assets/dartbord1.jpeg');
-        const dartbord2 = await loadImageData('/assets/dartbord2.jpeg');
+        const emptyBoard = await loadImageData(EMPTY_BOARD_PHOTO);
+        const boardWithDart = await loadImageData(BOARD_WITH_DART_PHOTO);
 
-        if (
-            dartbord0.width !== dartbord1.width ||
-            dartbord0.height !== dartbord1.height ||
-            dartbord0.width !== dartbord2.width ||
-            dartbord0.height !== dartbord2.height
-        ) {
+        if (emptyBoard.width !== boardWithDart.width || emptyBoard.height !== boardWithDart.height) {
             throw new Error('De foto’s moeten dezelfde afmetingen hebben.');
         }
 
-        const dartbord0Mat = cv.matFromImageData(dartbord0);
-        mats.push(dartbord0Mat);
+        const emptyBoardMat = cv.matFromImageData(emptyBoard);
+        mats.push(emptyBoardMat);
 
-        const dartbord1Mat = cv.matFromImageData(dartbord1);
-        mats.push(dartbord1Mat);
-
-        const dartbord2Mat = cv.matFromImageData(dartbord2);
-        mats.push(dartbord2Mat);
+        const boardWithDartMat = cv.matFromImageData(boardWithDart);
+        mats.push(boardWithDartMat);
 
         const differenceMat = new cv.Mat();
         mats.push(differenceMat);
@@ -53,12 +48,7 @@ document.getElementById('run').addEventListener('click', async () => {
         const resultMat = new cv.Mat();
         mats.push(resultMat);
 
-        cv.imshow('empty-bord', dartbord0Mat);
-        cv.imshow('bord-1', dartbord1Mat);
-        cv.imshow('bord-2', dartbord2Mat);
-
-        // Hier kun je experimenteren met tussenstappen.
-        cv.absdiff(dartbord0Mat, dartbord1Mat, differenceMat);
+        cv.absdiff(emptyBoardMat, boardWithDartMat, differenceMat);
 
         // Verwijder het transparantiekanaal voor de weergave.
         cv.cvtColor(differenceMat, resultMat, cv.COLOR_RGBA2GRAY);
@@ -67,8 +57,6 @@ document.getElementById('run').addEventListener('click', async () => {
         mats.push(maskMat);
 
         cv.threshold(resultMat, maskMat, 20, 255, cv.THRESH_BINARY);
-        cv.imshow('result', maskMat);
-
 
         // Stap 2
         const flightMaskMat = new cv.Mat();
@@ -86,8 +74,6 @@ document.getElementById('run').addEventListener('click', async () => {
             cv.MORPH_CLOSE,
             kernel
         );
-
-        cv.imshow('flight-mask', flightMaskMat);
 
         // Stap 3
         const contours = new cv.MatVector();
@@ -112,7 +98,7 @@ document.getElementById('run').addEventListener('click', async () => {
         const contourResult = new cv.Mat();
         mats.push(contourResult);
 
-        cv.cvtColor(dartbord1Mat, contourResult, cv.COLOR_RGBA2RGB);
+        cv.cvtColor(boardWithDartMat, contourResult, cv.COLOR_RGBA2RGB);
 
         const candidates = [];
 
