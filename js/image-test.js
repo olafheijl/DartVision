@@ -16,54 +16,26 @@ async function loadImageData(url) {
     return ctx.getImageData(0, 0, canvas.width, canvas.height);
 }
 
-document.getElementById('run').addEventListener('click', async () => {
-    const button = document.getElementById('run');
-    const status = document.getElementById('status');
-    const comparisonSelect = document.getElementById('comparison');
-    const mats = [];
-    const comparison = comparisonSelect.value;
+// Both the detailed comparison and the photo pairs use the same detection steps.
+function compareImages(cv, before, after, showSteps = false) {
+    if (before.width !== after.width || before.height !== after.height) {
+        throw new Error('De foto’s moeten dezelfde afmetingen hebben.');
+    }
 
-    button.disabled = true;
-    comparisonSelect.disabled = true;
-    status.textContent = 'Beelden laden en rechte randen zoeken…';
+    const mats = [];
+    const keep = mat => {
+        mats.push(mat);
+        return mat;
+    };
+    const show = (id, mat) => {
+        if (showSteps) cv.imshow(id, mat);
+    };
 
     try {
-        const { cv } = await getOpenCV();
-
-        const dartbord0 = await loadImageData('/assets/dartbord0.jpeg');
-        const dartbord1 = await loadImageData('/assets/dartbord1.jpeg');
-        const dartbord2 = await loadImageData('/assets/dartbord2.jpeg');
-
-        if (
-            dartbord0.width !== dartbord1.width ||
-            dartbord0.height !== dartbord1.height || 
-            dartbord0.width !== dartbord2.width ||
-            dartbord0.height !== dartbord2.height
-        ) {
-            throw new Error('De foto’s moeten dezelfde afmetingen hebben.');
-        }
-
-        const dartbord0Mat = cv.matFromImageData(dartbord0);
-        mats.push(dartbord0Mat);
-        
-        const dartbord1Mat = cv.matFromImageData(dartbord1);
-        mats.push(dartbord1Mat);
-        
-        const dartbord2Mat = cv.matFromImageData(dartbord2);
-        mats.push(dartbord2Mat);
-
-        const differenceMat = new cv.Mat();
-        mats.push(differenceMat);
-
-        const resultMat = new cv.Mat();
-        mats.push(resultMat);
-
-        cv.imshow('empty-bord', dartbord0Mat);
-        cv.imshow('bord-1', dartbord1Mat);
-        cv.imshow('bord-2', dartbord2Mat);
-
-        const beforeMat = comparison === '1-2' ? dartbord1Mat : dartbord0Mat;
-        const afterMat = comparison === '0-1' ? dartbord1Mat : dartbord2Mat;
+        const beforeMat = keep(cv.matFromImageData(before));
+        const afterMat = keep(cv.matFromImageData(after));
+        const differenceMat = keep(new cv.Mat());
+        const resultMat = keep(new cv.Mat());
 
         // Hier kun je experimenteren met tussenstappen.
         cv.absdiff(beforeMat, afterMat, differenceMat);
@@ -71,22 +43,19 @@ document.getElementById('run').addEventListener('click', async () => {
         // Verwijder het transparantiekanaal voor de weergave.
         cv.cvtColor(differenceMat, resultMat, cv.COLOR_RGBA2GRAY);
 
-        const maskMat = new cv.Mat();
-        mats.push(maskMat);
+        const maskMat = keep(new cv.Mat());
 
         cv.threshold(resultMat, maskMat, 20, 255, cv.THRESH_BINARY);
-        cv.imshow('result', maskMat);
+        show('result', maskMat);
 
 
         // Stap 2
-        const flightMaskMat = new cv.Mat();
-        mats.push(flightMaskMat);
+        const flightMaskMat = keep(new cv.Mat());
 
-        const kernel = cv.getStructuringElement(
+        const kernel = keep(cv.getStructuringElement(
             cv.MORPH_ELLIPSE,
             new cv.Size(5, 5)
-        );
-        mats.push(kernel);
+        ));
 
         cv.morphologyEx(
             maskMat,
@@ -95,18 +64,15 @@ document.getElementById('run').addEventListener('click', async () => {
             kernel
         );
 
-        cv.imshow('flight-mask', flightMaskMat);
+        show('flight-mask', flightMaskMat);
 
         // Stap 3
-        const contours = new cv.MatVector();
-        mats.push(contours);
+        const contours = keep(new cv.MatVector());
 
-        const hierarchy = new cv.Mat();
-        mats.push(hierarchy);
+        const hierarchy = keep(new cv.Mat());
 
         // Werk op een kopie, zodat flightMaskMat behouden blijft.
-        const contourInput = flightMaskMat.clone();
-        mats.push(contourInput);
+        const contourInput = keep(flightMaskMat.clone());
 
         cv.findContours(
             contourInput,
@@ -116,23 +82,13 @@ document.getElementById('run').addEventListener('click', async () => {
             cv.CHAIN_APPROX_SIMPLE
         );
 
-        // Teken kaders op een kleurenkopie van de oorspronkelijke foto.
-        const contourResult = new cv.Mat();
-        mats.push(contourResult);
+        const contourResult = showSteps ? keep(new cv.Mat()) : null;
+        if (contourResult) cv.cvtColor(afterMat, contourResult, cv.COLOR_RGBA2RGB);
 
-        cv.cvtColor(afterMat, contourResult, cv.COLOR_RGBA2RGB);
-
-        // Clear downstream views on every run, including a run without objects.
-        const shaftResult = new cv.Mat();
-        mats.push(shaftResult);
-        cv.cvtColor(afterMat, shaftResult, cv.COLOR_RGBA2RGB);
-        const tipResult = shaftResult.clone();
-        mats.push(tipResult);
-        cv.imshow('shaft-result', shaftResult);
-        cv.imshow('tip-result', tipResult);
-        const selectedMask = cv.Mat.zeros(resultMat.rows, resultMat.cols, cv.CV_8UC1);
-        mats.push(selectedMask);
-        cv.imshow('dart-mask', selectedMask);
+        // Start the debug views with an unmarked photo and an empty mask.
+        show('shaft-result', afterMat);
+        show('tip-result', afterMat);
+        if (showSteps) show('dart-mask', keep(cv.Mat.zeros(resultMat.rows, resultMat.cols, cv.CV_8UC1)));
 
         const candidates = [];
 
@@ -153,7 +109,7 @@ document.getElementById('run').addEventListener('click', async () => {
                     rect
                 });
 
-                cv.rectangle(
+                if (contourResult) cv.rectangle(
                     contourResult,
                     new cv.Point(rect.x, rect.y),
                     new cv.Point(rect.x + rect.width, rect.y + rect.height),
@@ -166,11 +122,9 @@ document.getElementById('run').addEventListener('click', async () => {
         }
 
         // Stap 4: dikste deel van de vorm als mogelijke flight markeren.
-        const objectMask = cv.Mat.zeros(flightMaskMat.rows, flightMaskMat.cols, cv.CV_8UC1);
-        mats.push(objectMask);
+        const objectMask = keep(cv.Mat.zeros(flightMaskMat.rows, flightMaskMat.cols, cv.CV_8UC1));
 
-        const distanceMat = new cv.Mat();
-        mats.push(distanceMat);
+        const distanceMat = keep(new cv.Mat());
 
         let flightPoint = null;
         let largestThickness = 0;
@@ -189,9 +143,9 @@ document.getElementById('run').addEventListener('click', async () => {
             }
         }
 
+        let result = { tip: null, message: 'Geen geschikt object gevonden om een mogelijke flight te markeren.' };
         if (flightPoint) {
-            cv.circle(contourResult, new cv.Point(flightPoint.x, flightPoint.y), 5, new cv.Scalar(255, 0, 0), -1);
-            console.log('Mogelijke flight:', flightPoint);
+            if (contourResult) cv.circle(contourResult, new cv.Point(flightPoint.x, flightPoint.y), 5, new cv.Scalar(255, 0, 0), -1);
             // Stap 5: rechte schachtranden en de geschatte schachtrichting.
             objectMask.setTo(new cv.Scalar(0));
             cv.drawContours(objectMask, contours, flightCandidate.contourIndex, new cv.Scalar(255), -1);
@@ -204,35 +158,110 @@ document.getElementById('run').addEventListener('click', async () => {
             } finally {
                 flightContour.delete();
             }
-            drawImageDart(cv, shaftResult, flightPoint, analysis, false);
-            cv.imshow('shaft-result', shaftResult);
+            if (showSteps) {
+                const shaftResult = keep(new cv.Mat());
+                cv.cvtColor(afterMat, shaftResult, cv.COLOR_RGBA2RGB);
+                drawImageDart(cv, shaftResult, flightPoint, analysis, false);
+                show('shaft-result', shaftResult);
 
-            // Stap 6: de verste echte maskerpixel in de schachtrichting.
-            selectedMask.data.set(analysis.dartMask);
-            const maskResult = new cv.Mat();
-            mats.push(maskResult);
-            cv.cvtColor(selectedMask, maskResult, cv.COLOR_GRAY2RGB);
-            drawImageDart(cv, maskResult, flightPoint, { lines: [], tip: analysis.tip }, true);
-            cv.imshow('dart-mask', maskResult);
-            shaftResult.copyTo(tipResult);
-            drawImageDart(cv, tipResult, flightPoint, analysis, true);
-            cv.imshow('tip-result', tipResult);
-            console.table(analysis.lines);
-            console.log('Geschatte punt:', analysis.tip || null);
-            status.textContent = `${analysis.lines.length} mogelijke schachtrand(en). ${analysis.reason}`;
-        } else {
-            status.textContent = 'Geen geschikt object gevonden om een mogelijke flight te markeren.';
+                const selectedMask = keep(new cv.Mat(resultMat.rows, resultMat.cols, cv.CV_8UC1));
+                selectedMask.data.set(analysis.dartMask);
+                const maskResult = keep(new cv.Mat());
+                cv.cvtColor(selectedMask, maskResult, cv.COLOR_GRAY2RGB);
+                drawImageDart(cv, maskResult, flightPoint, { lines: [], tip: analysis.tip }, true);
+                show('dart-mask', maskResult);
+
+                drawImageDart(cv, shaftResult, flightPoint, analysis, true);
+                show('tip-result', shaftResult);
+            }
+            result = {
+                tip: analysis.tip,
+                message: `${analysis.lines.length} mogelijke schachtrand(en). ${analysis.reason}`
+            };
         }
 
-        cv.imshow('contour-result', contourResult);
-        console.table(candidates);
+        show('contour-result', contourResult);
+        return result;
+    } finally {
+        for (const mat of mats.reverse()) mat.delete();
+    }
+}
+
+function showSource(cv, id, image) {
+    const mat = cv.matFromImageData(image);
+    try {
+        cv.imshow(id, mat);
+    } finally {
+        mat.delete();
+    }
+}
+
+function drawTip(canvas, image, tip) {
+    canvas.width = image.width;
+    canvas.height = image.height;
+    const context = canvas.getContext('2d');
+    context.putImageData(image, 0, 0);
+    if (!tip) return;
+
+    const radius = Math.max(4, Math.max(image.width, image.height) / 150);
+    context.beginPath();
+    context.arc(tip.x + 0.5, tip.y + 0.5, radius, 0, 2 * Math.PI);
+    context.fillStyle = '#ffe600';
+    context.fill();
+    context.lineWidth = radius / 3;
+    context.strokeStyle = '#111827';
+    context.stroke();
+}
+
+const assetUrl = filename => `${import.meta.env.BASE_URL}assets/${filename}.jpeg`;
+
+async function runPhotoPair(cv, figure) {
+    const id = encodeURIComponent(figure.id);
+    const canvas = figure.querySelector('canvas') ?? figure.appendChild(document.createElement('canvas'));
+    const status = figure.querySelector('[data-pair-status]') ?? figure.appendChild(document.createElement('p'));
+    status.setAttribute('data-pair-status', '');
+    status.setAttribute('role', 'status');
+    status.textContent = 'Fotopaar laden…';
+    canvas.hidden = true;
+
+    try {
+        const after = await loadImageData(assetUrl(id));
+        drawTip(canvas, after, null);
+        canvas.hidden = false;
+        const before = await loadImageData(assetUrl(`${id}L`));
+        const { tip, message } = compareImages(cv, before, after);
+        if (tip) drawTip(canvas, after, tip);
+        status.textContent = tip ? 'Gele stip: geschatte dartpunt.' : message;
+    } catch (error) {
+        status.textContent = `${figure.id}.jpeg / ${figure.id}L.jpeg: ${error.message}`;
+    }
+}
+
+document.getElementById('run').addEventListener('click', async () => {
+    const button = document.getElementById('run');
+    const status = document.getElementById('status');
+    const comparisonSelect = document.getElementById('comparison');
+    button.disabled = true;
+    comparisonSelect.disabled = true;
+    status.textContent = 'Beelden laden en rechte randen zoeken…';
+
+    try {
+        const { cv } = await getOpenCV();
+        // Process one pair at a time so large images don't accumulate in memory.
+        for (const figure of document.querySelectorAll('figure[id]')) {
+            await runPhotoPair(cv, figure);
+        }
+
+        const images = await Promise.all([0, 1, 2].map(index => loadImageData(assetUrl(`dartbord${index}`))));
+        const sourceIds = ['empty-bord', 'bord-1', 'bord-2'];
+        images.forEach((image, index) => showSource(cv, sourceIds[index], image));
+
+        const [before, after] = comparisonSelect.value.split('-').map(Number);
+        const { message } = compareImages(cv, images[before], images[after], true);
+        status.textContent = message;
     } catch (error) {
         status.textContent = error.message;
     } finally {
-        for (const mat of mats) {
-            mat.delete();
-        }
-
         button.disabled = false;
         comparisonSelect.disabled = false;
     }
