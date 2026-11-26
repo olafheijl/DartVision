@@ -19,6 +19,39 @@ async function loadImageData(url) {
     return ctx.getImageData(0, 0, canvas.width, canvas.height);
 }
 
+// Schat de hoofdrichting van de contour en richt die van de flight af.
+function findShaftDirection(cv, contour, flightPoint) {
+    if (contour.rows < 2) return null;
+
+    const line = new cv.Mat();
+    try {
+        cv.fitLine(contour, line, cv.DIST_L2, 0, 0.01, 0.01);
+        let [dx, dy] = line.data32F;
+
+        // De projectie geeft de afstand langs de lijn, gemeten vanaf de flight.
+        let min = 0;
+        let max = 0;
+        const points = contour.data32S;
+        for (let i = 0; i < points.length; i += 2) {
+            const x = points[i] - flightPoint.x;
+            const y = points[i + 1] - flightPoint.y;
+            const distanceAlongLine = x * dx + y * dy;
+            min = Math.min(min, distanceAlongLine);
+            max = Math.max(max, distanceAlongLine);
+        }
+
+        // De langste kant van de contour is de vermoedelijke schachtkant.
+        if (-min > max) {
+            dx = -dx;
+            dy = -dy;
+        }
+
+        return { dx, dy };
+    } finally {
+        line.delete();
+    }
+}
+
 document.getElementById('run').addEventListener('click', async () => {
     const button = document.getElementById('run');
     const status = document.getElementById('status');
@@ -140,6 +173,7 @@ document.getElementById('run').addEventListener('click', async () => {
 
         let flightPoint = null;
         let largestThickness = 0;
+        let bestContourIndex = null;
 
         for (const candidate of candidates) {
             objectMask.setTo(new cv.Scalar(0));
@@ -149,11 +183,29 @@ document.getElementById('run').addEventListener('click', async () => {
             const measurement = cv.minMaxLoc(distanceMat);
             if (measurement.maxVal > largestThickness) {
                 largestThickness = measurement.maxVal;
+                bestContourIndex = candidate.contourIndex;
                 flightPoint = { x: measurement.maxLoc.x, y: measurement.maxLoc.y };
             }
         }
 
         if (flightPoint) {
+            // Stap 5: teken de geschatte schachtrichting vanaf de flight.
+            const contour = contours.get(bestContourIndex);
+            try {
+                const direction = findShaftDirection(cv, contour, flightPoint);
+                if (direction) {
+                    const lineLength = 100;
+                    const start = new cv.Point(flightPoint.x, flightPoint.y);
+                    const end = new cv.Point(
+                        Math.round(flightPoint.x + lineLength * direction.dx),
+                        Math.round(flightPoint.y + lineLength * direction.dy)
+                    );
+                    cv.line(contourResult, start, end, new cv.Scalar(0, 160, 255), 3);
+                }
+            } finally {
+                contour.delete();
+            }
+
             cv.circle(contourResult, new cv.Point(flightPoint.x, flightPoint.y), 5, new cv.Scalar(255, 0, 0), -1);
             console.log('Mogelijke flight:', flightPoint);
             status.textContent = `Mogelijke flight: rode stip op (${flightPoint.x}, ${flightPoint.y}). Controleer of deze op de flight ligt.`;
