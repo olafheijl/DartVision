@@ -63,19 +63,20 @@ function findShaftDirection(cv, contour, flightPoint) {
     }
 }
 
-// Zoek in het drempelmasker binnen de gekozen contour en de schachtstrook.
-function findFurthestWhitePixel(maskMat, objectMask, flightPoint, direction, halfWidth) {
+// Begin in de gekozen contour en volg daarna witte pixels in de schachtstrook.
+function findFurthestWhitePixel(maskMat, objectMask, flightPoint, direction, halfWidth, maxGap) {
     const { dx, dy } = direction;
     const { cols, rows, data } = maskMat;
     const objectPixels = objectMask.data;
     let tip = null;
     let furthest = 0;
     let closestToAxis = Infinity;
+    const continuation = [];
 
     for (let y = 0; y < rows; y++) {
         for (let x = 0; x < cols; x++) {
             const index = y * cols + x;
-            if (data[index] !== 255 || !objectPixels[index]) continue;
+            if (data[index] !== 255) continue;
 
             const offsetX = x - flightPoint.x;
             const offsetY = y - flightPoint.y;
@@ -84,11 +85,30 @@ function findFurthestWhitePixel(maskMat, objectMask, flightPoint, direction, hal
             const distanceToAxis = Math.abs(offsetX * dy - offsetY * dx);
             if (distance <= 0 || distanceToAxis > halfWidth) continue;
 
+            if (!objectPixels[index]) {
+                continuation.push({ x, y, distance, distanceToAxis });
+                continue;
+            }
+
             if (distance > furthest || (distance === furthest && distanceToAxis < closestToAxis)) {
                 tip = { x, y };
                 furthest = distance;
                 closestToAxis = distanceToAxis;
             }
+        }
+    }
+
+    if (!tip) return null;
+
+    // Werk van dichtbij naar veraf. Na een te grote onderbreking stopt de zoeklijn.
+    continuation.sort((a, b) => a.distance - b.distance || b.distanceToAxis - a.distanceToAxis);
+    for (const pixel of continuation) {
+        if (pixel.distance - furthest > maxGap) break;
+        if (pixel.distance > furthest ||
+            (pixel.distance === furthest && pixel.distanceToAxis < closestToAxis)) {
+            tip = { x: pixel.x, y: pixel.y };
+            furthest = pixel.distance;
+            closestToAxis = pixel.distanceToAxis;
         }
     }
 
@@ -253,11 +273,13 @@ document.getElementById('run').addEventListener('click', async () => {
                     );
                     cv.line(contourResult, start, end, new cv.Scalar(0, 160, 255), 3);
 
-                    // Stap 6: gebruik de winnende contour om andere objecten uit te sluiten.
+                    // Stap 6: begin in de winnende contour en zoek verder langs de schacht.
                     objectMask.setTo(new cv.Scalar(0));
                     cv.drawContours(objectMask, contours, bestContourIndex, new cv.Scalar(255), -1);
-                    const halfWidth = Math.max(3, 6 * Math.max(maskMat.cols, maskMat.rows) / 640);
-                    tip = findFurthestWhitePixel(maskMat, objectMask, flightPoint, direction, halfWidth);
+                    const scale = Math.max(maskMat.cols, maskMat.rows) / 640;
+                    const halfWidth = Math.max(3, 6 * scale);
+                    const maxGap = Math.max(2, 12 * scale);
+                    tip = findFurthestWhitePixel(maskMat, objectMask, flightPoint, direction, halfWidth, maxGap);
                 }
             } finally {
                 contour.delete();
