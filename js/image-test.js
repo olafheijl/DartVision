@@ -112,6 +112,40 @@ function findFurthestWhitePixel(maskMat, objectMask, flightPoint, direction, hal
         }
     }
 
+    return findFragmentEnd(maskMat, tip, direction);
+}
+
+// Volg de witte vorm vanaf de gevonden pixel, ook buiten de zoekstrook.
+function findFragmentEnd(maskMat, start, { dx, dy }) {
+    const { cols, rows, data } = maskMat;
+    const startIndex = start.y * cols + start.x;
+    const visited = new Uint8Array(data.length);
+    const pending = [startIndex];
+    visited[startIndex] = 1;
+
+    let tip = start;
+    let furthest = 0;
+    for (let i = 0; i < pending.length; i++) {
+        const index = pending[i];
+        const x = index % cols;
+        const y = Math.floor(index / cols);
+        const distance = (x - start.x) * dx + (y - start.y) * dy;
+        if (distance > furthest) {
+            furthest = distance;
+            tip = { x, y };
+        }
+
+        // Diagonale buren tellen mee voor een schuine, dunne dartpunt.
+        for (let ny = Math.max(0, y - 1); ny <= Math.min(rows - 1, y + 1); ny++) {
+            for (let nx = Math.max(0, x - 1); nx <= Math.min(cols - 1, x + 1); nx++) {
+                const neighbour = ny * cols + nx;
+                if (visited[neighbour] || data[neighbour] !== 255) continue;
+                visited[neighbour] = 1;
+                pending.push(neighbour);
+            }
+        }
+    }
+
     return tip;
 }
 
