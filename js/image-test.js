@@ -63,6 +63,38 @@ function findShaftDirection(cv, contour, flightPoint) {
     }
 }
 
+// Zoek in het drempelmasker binnen de gekozen contour en de schachtstrook.
+function findFurthestWhitePixel(maskMat, objectMask, flightPoint, direction, halfWidth) {
+    const { dx, dy } = direction;
+    const { cols, rows, data } = maskMat;
+    const objectPixels = objectMask.data;
+    let tip = null;
+    let furthest = 0;
+    let closestToAxis = Infinity;
+
+    for (let y = 0; y < rows; y++) {
+        for (let x = 0; x < cols; x++) {
+            const index = y * cols + x;
+            if (data[index] !== 255 || !objectPixels[index]) continue;
+
+            const offsetX = x - flightPoint.x;
+            const offsetY = y - flightPoint.y;
+            // De projectie bepaalt hoever de pixel langs de schacht ligt.
+            const distance = offsetX * dx + offsetY * dy;
+            const distanceToAxis = Math.abs(offsetX * dy - offsetY * dx);
+            if (distance <= 0 || distanceToAxis > halfWidth) continue;
+
+            if (distance > furthest || (distance === furthest && distanceToAxis < closestToAxis)) {
+                tip = { x, y };
+                furthest = distance;
+                closestToAxis = distanceToAxis;
+            }
+        }
+    }
+
+    return tip;
+}
+
 document.getElementById('run').addEventListener('click', async () => {
     const run_button = document.getElementById('run');
     const status = document.getElementById('status');
@@ -207,6 +239,7 @@ document.getElementById('run').addEventListener('click', async () => {
         }
 
         if (flightPoint) {
+            let tip = null;
             // Stap 5: teken de geschatte schachtrichting vanaf de flight.
             const contour = contours.get(bestContourIndex);
             try {
@@ -219,14 +252,24 @@ document.getElementById('run').addEventListener('click', async () => {
                         Math.round(flightPoint.y + lineLength * direction.dy)
                     );
                     cv.line(contourResult, start, end, new cv.Scalar(0, 160, 255), 3);
+
+                    // Stap 6: gebruik de winnende contour om andere objecten uit te sluiten.
+                    objectMask.setTo(new cv.Scalar(0));
+                    cv.drawContours(objectMask, contours, bestContourIndex, new cv.Scalar(255), -1);
+                    const halfWidth = Math.max(3, 6 * Math.max(maskMat.cols, maskMat.rows) / 640);
+                    tip = findFurthestWhitePixel(maskMat, objectMask, flightPoint, direction, halfWidth);
                 }
             } finally {
                 contour.delete();
             }
 
             cv.circle(contourResult, new cv.Point(flightPoint.x, flightPoint.y), 5, new cv.Scalar(255, 0, 0), -1);
+            if (tip) {
+                cv.circle(contourResult, new cv.Point(tip.x, tip.y), 5, new cv.Scalar(255, 230, 0), -1);
+            }
             console.log('Mogelijke flight:', flightPoint);
-            status.textContent = `Mogelijke flight: rode stip op (${flightPoint.x}, ${flightPoint.y}). Controleer of deze op de flight ligt.`;
+            status.textContent = `Mogelijke flight: rode stip op (${flightPoint.x}, ${flightPoint.y}). ` +
+                (tip ? ` Gele stip: verste witte pixel op (${tip.x}, ${tip.y}).` : ' Geen witte pixel gevonden in de schachtrichting.');
         } else {
             status.textContent = 'Geen geschikt object gevonden om een mogelijke flight te markeren.';
         }
