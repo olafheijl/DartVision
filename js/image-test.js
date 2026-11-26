@@ -1,7 +1,7 @@
 import { getOpenCV } from './opencv-runtime.js';
 
 // Foto's uit public/assets: eerst het lege bord, daarna het bord met dart.
-const THROW_NAME = 'D11'
+const THROW_NAME = 'T2'
 const BOARD_BEFORE_PHOTO = '/assets/' + THROW_NAME + 'L.jpeg';
 const BOARD_AFTER_PHOTO = '/assets/' + THROW_NAME + '.jpeg';
 
@@ -157,7 +157,7 @@ document.getElementById('run').addEventListener('click', async () => {
         const maskMat = new cv.Mat();
         mats.push(maskMat);
 
-        cv.threshold(resultMat, maskMat, 30, 255, cv.THRESH_BINARY);
+        cv.threshold(resultMat, maskMat, 25, 255, cv.THRESH_BINARY);
         cv.imshow('mask', maskMat);
 
         // Stap 2
