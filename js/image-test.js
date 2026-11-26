@@ -1,8 +1,9 @@
 import { getOpenCV } from './opencv-runtime.js';
 
 // Foto's uit public/assets: eerst het lege bord, daarna het bord met dart.
-const BOARD_BEFORE_PHOTO = '/assets/T2L.jpeg';
-const BOARD_AFTER_PHOTE = '/assets/T2.jpeg';
+const THROW_NAME = 'D11'
+const BOARD_BEFORE_PHOTO = '/assets/' + THROW_NAME + 'L.jpeg';
+const BOARD_AFTER_PHOTO = '/assets/' + THROW_NAME + '.jpeg';
 
 async function loadImageData(url) {
     const image = new Image();
@@ -73,7 +74,7 @@ document.getElementById('run').addEventListener('click', async () => {
         const { cv } = await getOpenCV();
 
         const boardBefore = await loadImageData(BOARD_BEFORE_PHOTO);
-        const boardAfter = await loadImageData(BOARD_AFTER_PHOTE);
+        const boardAfter = await loadImageData(BOARD_AFTER_PHOTO);
 
         if (!imageSameSize(boardBefore, boardAfter)) {
             throw new Error('De foto’s moeten dezelfde afmetingen hebben.');
