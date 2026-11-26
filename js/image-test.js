@@ -1,8 +1,8 @@
 import { getOpenCV } from './opencv-runtime.js';
 
 // Foto's uit public/assets: eerst het lege bord, daarna het bord met dart.
-const EMPTY_BOARD_PHOTO = '/assets/S4L.jpeg';
-const BOARD_WITH_DART_PHOTO = '/assets/S4.jpeg';
+const BOARD_BEFORE_PHOTO = '/assets/T2L.jpeg';
+const BOARD_AFTER_PHOTE = '/assets/T2.jpeg';
 
 async function loadImageData(url) {
     const image = new Image();
@@ -19,28 +19,40 @@ async function loadImageData(url) {
     return ctx.getImageData(0, 0, canvas.width, canvas.height);
 }
 
+function imageSameSize(image1, image2) {
+    if (image1.width !== image2.width) {
+        return false;
+    }
+    if (image1.height !== image2.height) {
+        return false;
+    }
+    return true;
+}
+
 document.getElementById('run').addEventListener('click', async () => {
-    const button = document.getElementById('run');
+    const run_button = document.getElementById('run');
     const status = document.getElementById('status');
     const mats = [];
 
-    button.disabled = true;
+    run_button.disabled = true;
 
     try {
         const { cv } = await getOpenCV();
 
-        const emptyBoard = await loadImageData(EMPTY_BOARD_PHOTO);
-        const boardWithDart = await loadImageData(BOARD_WITH_DART_PHOTO);
+        const boardBefore = await loadImageData(BOARD_BEFORE_PHOTO);
+        const boardAfter = await loadImageData(BOARD_AFTER_PHOTE);
 
-        if (emptyBoard.width !== boardWithDart.width || emptyBoard.height !== boardWithDart.height) {
+        if (!imageSameSize(boardBefore, boardAfter)) {
             throw new Error('De foto’s moeten dezelfde afmetingen hebben.');
         }
 
-        const emptyBoardMat = cv.matFromImageData(emptyBoard);
-        mats.push(emptyBoardMat);
+        const boardBeforeMat = cv.matFromImageData(boardBefore);
+        mats.push(boardBeforeMat);
+        cv.imshow('board-before', boardBeforeMat);
 
-        const boardWithDartMat = cv.matFromImageData(boardWithDart);
-        mats.push(boardWithDartMat);
+        const boardAfterMat = cv.matFromImageData(boardAfter);
+        mats.push(boardAfterMat);
+        cv.imshow('board-after', boardAfterMat);
 
         const differenceMat = new cv.Mat();
         mats.push(differenceMat);
@@ -48,15 +60,19 @@ document.getElementById('run').addEventListener('click', async () => {
         const resultMat = new cv.Mat();
         mats.push(resultMat);
 
-        cv.absdiff(emptyBoardMat, boardWithDartMat, differenceMat);
+        cv.absdiff(boardBeforeMat, boardAfterMat, differenceMat);
 
         // Verwijder het transparantiekanaal voor de weergave.
         cv.cvtColor(differenceMat, resultMat, cv.COLOR_RGBA2GRAY);
+        cv.imshow('board-difference', resultMat);
+        cv.GaussianBlur(resultMat, resultMat, new cv.Size(9,9), 2, 2);
+        cv.imshow('board-blur', resultMat);
 
         const maskMat = new cv.Mat();
         mats.push(maskMat);
 
-        cv.threshold(resultMat, maskMat, 20, 255, cv.THRESH_BINARY);
+        cv.threshold(resultMat, maskMat, 30, 255, cv.THRESH_BINARY);
+        cv.imshow('mask', maskMat);
 
         // Stap 2
         const flightMaskMat = new cv.Mat();
@@ -64,7 +80,7 @@ document.getElementById('run').addEventListener('click', async () => {
 
         const kernel = cv.getStructuringElement(
             cv.MORPH_ELLIPSE,
-            new cv.Size(5, 5)
+            new cv.Size(9, 9)
         );
         mats.push(kernel);
 
@@ -74,6 +90,7 @@ document.getElementById('run').addEventListener('click', async () => {
             cv.MORPH_CLOSE,
             kernel
         );
+        cv.imshow('flightmask', flightMaskMat);
 
         // Stap 3
         const contours = new cv.MatVector();
@@ -98,7 +115,7 @@ document.getElementById('run').addEventListener('click', async () => {
         const contourResult = new cv.Mat();
         mats.push(contourResult);
 
-        cv.cvtColor(boardWithDartMat, contourResult, cv.COLOR_RGBA2RGB);
+        cv.cvtColor(boardAfterMat, contourResult, cv.COLOR_RGBA2RGB);
 
         const candidates = [];
 
@@ -109,7 +126,7 @@ document.getElementById('run').addEventListener('click', async () => {
                 const area = cv.contourArea(contour);
 
                 // Startwaarde om kleine ruisvlekken over te slaan.
-                if (area < 30) continue;
+                if (area < 50) continue;
 
                 const rect = cv.boundingRect(contour);
 
@@ -170,6 +187,6 @@ document.getElementById('run').addEventListener('click', async () => {
             mat.delete();
         }
 
-        button.disabled = false;
+        run_button.disabled = false;
     }
 });
