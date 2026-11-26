@@ -1,4 +1,6 @@
 import { getOpenCV } from './opencv-runtime.js';
+import { boardToImageMatrix, calibrationPointNames, invertMatrix, pixelToBoard } from './board-calibration.js';
+import { scoreBoardPoint } from './dart-scoring.js';
 
 // Foto's uit public/assets: eerst het lege bord, daarna het bord met dart.
 const THROW_NAME = 'T2'
@@ -149,11 +151,48 @@ function findFragmentEnd(maskMat, start, { dx, dy }) {
     return tip;
 }
 
+const referenceCanvas = document.getElementById('board-before');
+const scoreStatus = document.getElementById('score-status');
+let photoCalibration = null;
+
+function askForCalibrationPoint() {
+    scoreStatus.textContent = `Klik op de foto van het lege bord op de buitenrand van de dubbelring: ${calibrationPointNames[photoCalibration.points.length]}.`;
+}
+
+referenceCanvas.addEventListener('click', event => {
+    if (!photoCalibration) return;
+
+    const { cv, points, tip } = photoCalibration;
+    const rect = referenceCanvas.getBoundingClientRect();
+    points.push([
+        (event.clientX - rect.left) * referenceCanvas.width / rect.width,
+        (event.clientY - rect.top) * referenceCanvas.height / rect.height
+    ]);
+    if (points.length < 4) {
+        askForCalibrationPoint();
+        return;
+    }
+
+    try {
+        const inverse = invertMatrix(boardToImageMatrix(cv, points));
+        const boardPoint = pixelToBoard(tip, inverse);
+        const { field, score } = scoreBoardPoint(boardPoint);
+        scoreStatus.textContent = `${field} · ${score} punten · Bordpositie (${boardPoint.x.toFixed(1)}, ${boardPoint.y.toFixed(1)}) mm.`;
+        photoCalibration = null;
+    } catch (error) {
+        points.length = 0;
+        askForCalibrationPoint();
+        scoreStatus.textContent = `${error.message} ${scoreStatus.textContent}`;
+    }
+});
+
 document.getElementById('run').addEventListener('click', async () => {
     const run_button = document.getElementById('run');
     const status = document.getElementById('status');
     const mats = [];
 
+    photoCalibration = null;
+    scoreStatus.textContent = '';
     run_button.disabled = true;
 
     try {
@@ -322,6 +361,8 @@ document.getElementById('run').addEventListener('click', async () => {
             cv.circle(contourResult, new cv.Point(flightPoint.x, flightPoint.y), 5, new cv.Scalar(255, 0, 0), -1);
             if (tip) {
                 cv.circle(contourResult, new cv.Point(tip.x, tip.y), 5, new cv.Scalar(255, 230, 0), -1);
+                photoCalibration = { cv, points: [], tip };
+                askForCalibrationPoint();
             }
             console.log('Mogelijke flight:', flightPoint);
             status.textContent = `Mogelijke flight: rode stip op (${flightPoint.x}, ${flightPoint.y}). ` +

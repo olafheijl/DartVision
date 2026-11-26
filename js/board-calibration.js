@@ -1,7 +1,7 @@
 import { getOpenCV, captureFrame } from './opencv-runtime.js';
 
 // Cardinal positions on the scoring boundary, not the number ring or surround.
-const names = ['boven (midden dubbel 20)', 'rechts (midden dubbel 6)', 'onder (midden dubbel 3)', 'links (midden dubbel 11)'];
+export const calibrationPointNames = ['boven (midden dubbel 20)', 'rechts (midden dubbel 6)', 'onder (midden dubbel 3)', 'links (midden dubbel 11)'];
 const target = [240, 20, 460, 240, 240, 460, 20, 240];
 
 export function initCalibration(video, canvas, onActive) {
@@ -42,7 +42,7 @@ export function initCalibration(video, canvas, onActive) {
             cancel.hidden = false;
             canvas.style.touchAction = 'none';
             onActive(true);
-            status.textContent = `Tik op de buitenrand van de dubbelring: ${names[0]}.`;
+            status.textContent = `Tik op de buitenrand van de dubbelring: ${calibrationPointNames[0]}.`;
             canvas.scrollIntoView({ block: 'center', behavior: 'smooth' });
         } catch (error) {
             status.textContent = error.message;
@@ -66,28 +66,16 @@ export function initCalibration(video, canvas, onActive) {
         ctx.fillStyle = '#00ff00';
         ctx.beginPath(); ctx.arc(x, y, 5, 0, 2 * Math.PI); ctx.fill();
         if (points.length < 4) {
-            status.textContent = `Tik op de buitenrand van de dubbelring: ${names[points.length]}.`;
+            status.textContent = `Tik op de buitenrand van de dubbelring: ${calibrationPointNames[points.length]}.`;
             return;
         }
         active = false;
-        const mats = [];
         try {
-            // Require a consistently clockwise convex quadrilateral with useful area.
-            for (let i = 0; i < 4; i++) {
-                const a = points[i], b = points[(i + 1) % 4], c = points[(i + 2) % 4];
-                if ((b[0]-a[0])*(c[1]-b[1]) - (b[1]-a[1])*(c[0]-b[0]) < 25) {
-                    throw new Error('De punten vormen geen geldig bord. Probeer opnieuw in de volgorde boven, rechts, onder, links.');
-                }
-            }
             const { cv } = await getOpenCV();
-            const keep = mat => { mats.push(mat); return mat; };
-            const from = keep(cv.matFromArray(4, 1, cv.CV_32FC2, target));
-            const to = keep(cv.matFromArray(4, 1, cv.CV_32FC2, points.flat()));
-            const transform = keep(cv.getPerspectiveTransform(from, to));
-            showOverlay(Array.from(transform.data64F));
+            showOverlay(boardToImageMatrix(cv, points));
             status.textContent = 'Controleer de gekleurde bull en D20 / D6 / D3 / D11 op het livebeeld. Camera verplaatst? Kalibreer opnieuw.';
         } catch (error) { status.textContent = error.message; stage.classList.remove('frozen'); canvas.hidden = true; }
-        finally { for (const mat of mats.reverse()) mat.delete(); finish(); }
+        finally { finish(); }
     });
     function clearOverlay() {
         inverse = null;
@@ -115,8 +103,7 @@ export function initCalibration(video, canvas, onActive) {
         get ready() { return !!inverse && frameSize[0] === video.videoWidth && frameSize[1] === video.videoHeight; },
         toBoard(x, y) {
             if (!this.ready) return null;
-            const [bx, by] = projectPoint(inverse, x * canvas.width, y * canvas.height);
-            return { x: (bx - 240) * 170 / 220, y: (by - 240) * 170 / 220 };
+            return pixelToBoard({ x: x * canvas.width, y: y * canvas.height }, inverse);
         },
         showAutomatic(board) {
             showOverlay(board.matrix);
@@ -124,6 +111,32 @@ export function initCalibration(video, canvas, onActive) {
         }
     };
 
+}
+
+export function boardToImageMatrix(cv, points) {
+    // Require a clockwise convex quadrilateral with sufficient area.
+    for (let i = 0; i < 4; i++) {
+        const a = points[i], b = points[(i + 1) % 4], c = points[(i + 2) % 4];
+        if ((b[0]-a[0])*(c[1]-b[1]) - (b[1]-a[1])*(c[0]-b[0]) < 25) {
+            throw new Error('De punten vormen geen geldig bord. Probeer opnieuw in de volgorde boven, rechts, onder, links.');
+        }
+    }
+
+    const mats = [];
+    const keep = mat => { mats.push(mat); return mat; };
+    try {
+        const from = keep(cv.matFromArray(4, 1, cv.CV_32FC2, target));
+        const to = keep(cv.matFromArray(4, 1, cv.CV_32FC2, points.flat()));
+        const transform = keep(cv.getPerspectiveTransform(from, to));
+        return Array.from(transform.data64F);
+    } finally {
+        for (const mat of mats.reverse()) mat.delete();
+    }
+}
+
+export function pixelToBoard({ x, y }, inverse) {
+    const [bx, by] = projectPoint(inverse, x, y);
+    return { x: (bx - 240) * 170 / 220, y: (by - 240) * 170 / 220 };
 }
 
 export function projectPoint(matrix, x, y) {
