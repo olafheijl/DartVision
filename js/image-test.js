@@ -1,5 +1,6 @@
 import { getOpenCV } from './opencv-runtime.js';
 import { boardToImageMatrix, calibrationPointNames, invertMatrix, pixelToBoard } from './board-calibration.js';
+import { detectBoardInImage } from './board-detection.js';
 import { scoreBoardPoint } from './dart-scoring.js';
 
 // Foto's uit public/assets: eerst het lege bord, daarna het bord met dart.
@@ -153,7 +154,23 @@ function findFragmentEnd(maskMat, start, { dx, dy }) {
 
 const referenceCanvas = document.getElementById('board-before');
 const scoreStatus = document.getElementById('score-status');
+const manualCalibrationButton = document.getElementById('manual-photo-calibration');
 let photoCalibration = null;
+let manualCalibrationInput = null;
+
+function showPhotoScore(tip, boardToImage, automatic = false) {
+    const boardPoint = pixelToBoard(tip, invertMatrix(boardToImage));
+    const { field, score } = scoreBoardPoint(boardPoint);
+    const note = automatic ? ' Automatische kalibratie neemt vak 20 bovenaan aan.' : '';
+    scoreStatus.textContent = `${field} · ${score} punten · Bordpositie (${boardPoint.x.toFixed(1)}, ${boardPoint.y.toFixed(1)}) mm.${note}`;
+}
+
+function startManualCalibration() {
+    photoCalibration = { ...manualCalibrationInput, points: [] };
+    askForCalibrationPoint();
+}
+
+manualCalibrationButton.addEventListener('click', startManualCalibration);
 
 function askForCalibrationPoint() {
     scoreStatus.textContent = `Klik op de foto van het lege bord op de buitenrand van de dubbelring: ${calibrationPointNames[photoCalibration.points.length]}.`;
@@ -174,10 +191,7 @@ referenceCanvas.addEventListener('click', event => {
     }
 
     try {
-        const inverse = invertMatrix(boardToImageMatrix(cv, points));
-        const boardPoint = pixelToBoard(tip, inverse);
-        const { field, score } = scoreBoardPoint(boardPoint);
-        scoreStatus.textContent = `${field} · ${score} punten · Bordpositie (${boardPoint.x.toFixed(1)}, ${boardPoint.y.toFixed(1)}) mm.`;
+        showPhotoScore(tip, boardToImageMatrix(cv, points));
         photoCalibration = null;
     } catch (error) {
         points.length = 0;
@@ -192,6 +206,8 @@ document.getElementById('run').addEventListener('click', async () => {
     const mats = [];
 
     photoCalibration = null;
+    manualCalibrationInput = null;
+    manualCalibrationButton.hidden = true;
     scoreStatus.textContent = '';
     run_button.disabled = true;
 
@@ -361,8 +377,20 @@ document.getElementById('run').addEventListener('click', async () => {
             cv.circle(contourResult, new cv.Point(flightPoint.x, flightPoint.y), 5, new cv.Scalar(255, 0, 0), -1);
             if (tip) {
                 cv.circle(contourResult, new cv.Point(tip.x, tip.y), 5, new cv.Scalar(255, 230, 0), -1);
-                photoCalibration = { cv, points: [], tip };
-                askForCalibrationPoint();
+                manualCalibrationInput = { cv, tip };
+                manualCalibrationButton.hidden = false;
+                try {
+                    const board = detectBoardInImage(cv, boardBefore);
+                    if (board) {
+                        showPhotoScore(tip, board.matrix, true);
+                    } else {
+                        startManualCalibration();
+                    }
+                } catch (error) {
+                    startManualCalibration();
+                    scoreStatus.textContent = `Automatische kalibratie mislukt. ${scoreStatus.textContent}`;
+                    console.warn(error);
+                }
             }
             console.log('Mogelijke flight:', flightPoint);
             status.textContent = `Mogelijke flight: rode stip op (${flightPoint.x}, ${flightPoint.y}). ` +

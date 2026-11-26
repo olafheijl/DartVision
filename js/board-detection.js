@@ -9,6 +9,10 @@ export async function detectBoard(video, canvas) {
     const { cv } = await getOpenCV();
     captureFrame(video, canvas);
     const image = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height);
+    return detectBoardInImage(cv, image);
+}
+
+export function detectBoardInImage(cv, image) {
     const mats=[];
     const keep=mat=>{mats.push(mat);return mat;};
     try {
